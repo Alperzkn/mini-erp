@@ -30,6 +30,16 @@ function migrateCustomer(c: any): Customer {
 }
 
 /**
+ * A customised prefix, or one that sales already use, keeps old numbers
+ * looking the same. The untouched default on an empty file gives way to the
+ * new date-based format.
+ */
+function legacyFormat(prefix: string | undefined, hasSales: boolean): string {
+  if (prefix && (hasSales || prefix !== 'S-')) return `${prefix}{####}`
+  return DEFAULT_SALE_NUMBER_FORMAT
+}
+
+/**
  * Brings any older or hand-edited data file up to the current shape.
  * Version 1 had a single `settings.currency` and no events.
  * Version 2 had person-customers and a prefix + counter for sale numbers.
@@ -51,9 +61,7 @@ export function normalize(raw: any): Db {
       baseCurrency,
       rates,
       ratesUpdatedAt: s.ratesUpdatedAt,
-      // A legacy prefix keeps old numbers looking the same.
-      saleNumberFormat:
-        s.saleNumberFormat ?? (s.salePrefix ? `${s.salePrefix}{####}` : DEFAULT_SALE_NUMBER_FORMAT),
+      saleNumberFormat: s.saleNumberFormat ?? legacyFormat(s.salePrefix, (raw.sales ?? []).length > 0),
     },
     customers: (raw.customers ?? []).map(migrateCustomer),
     products: (raw.products ?? []).map((p: any) => ({ ...p, currency: p.currency ?? fallback })),

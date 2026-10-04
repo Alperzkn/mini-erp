@@ -39,6 +39,20 @@ describe('normalize v2 → v3', () => {
     expect(db.version).toBe(3)
   })
 
+  it('drops the untouched default prefix when there are no sales yet', () => {
+    const db = normalize({ version: 2, settings: { salePrefix: 'S-', nextSaleNumber: 1 }, sales: [] })
+    expect(db.settings.saleNumberFormat).toBe('S-{YYYY}-{####}')
+  })
+
+  it('keeps the default prefix when sales already use it', () => {
+    const db = normalize({
+      version: 2,
+      settings: { salePrefix: 'S-', nextSaleNumber: 2 },
+      sales: [{ id: 's', number: 'S-0001', customerId: 'c', date: '2026-01-01', items: [], discount: 0, status: 'paid' }],
+    })
+    expect(db.settings.saleNumberFormat).toBe('S-{####}')
+  })
+
   it('returns an empty db for null', () => {
     expect(normalize(null).customers).toEqual([])
   })

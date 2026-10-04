@@ -139,6 +139,7 @@ export function renewalOf(sale: Sale): Partial<Sale> {
   const period = sale.renewalDate ? Math.max(1, monthsBetween(sale.date, sale.renewalDate)) : 12
   return {
     customerId: sale.customerId,
+    contactId: sale.contactId,
     date,
     items: sale.items.map((i) => ({ ...i, id: uid() })),
     discount: sale.discount,
