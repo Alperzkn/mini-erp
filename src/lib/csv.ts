@@ -25,6 +25,7 @@ export function salesCsv(db: Db): string {
   const base = db.settings.baseCurrency
   const customers = new Map(db.customers.map((c) => [c.id, c]))
   const numbers = new Map(db.sales.map((s) => [s.id, s.number]))
+  const reps = new Map(db.salespeople.map((p) => [p.id, p.name]))
   const rows = bySaleDate(db).map((s) => {
     const c = customers.get(s.customerId)
     return [
@@ -32,6 +33,7 @@ export function salesCsv(db: Db): string {
       s.date,
       c?.name,
       c?.contacts.find((p) => p.id === s.contactId)?.name,
+      s.salespersonId ? reps.get(s.salespersonId) : '',
       s.currency,
       saleSubtotal(s),
       s.discount || 0,
@@ -54,6 +56,7 @@ export function salesCsv(db: Db): string {
       'Date',
       'Customer',
       'Contact',
+      'Sales rep',
       'Currency',
       'Subtotal',
       'Discount',
@@ -127,6 +130,7 @@ export function eventsCsv(db: Db): string {
 
 export function customersCsv(db: Db): string {
   const base = db.settings.baseCurrency
+  const reps = new Map(db.salespeople.map((p) => [p.id, p.name]))
   const rows = [...db.customers]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((c) => {
@@ -136,6 +140,7 @@ export function customersCsv(db: Db): string {
       return [
         c.name,
         main?.name,
+        c.salespersonId ? reps.get(c.salespersonId) : '',
         main?.email,
         c.email,
         c.phone,
@@ -153,6 +158,7 @@ export function customersCsv(db: Db): string {
     [
       'Company',
       'Primary contact',
+      'Sales rep',
       'Contact email',
       'Email',
       'Phone',
@@ -180,6 +186,19 @@ export function contactsCsv(db: Db): string {
   return toCsv([['Company', 'Name', 'Role', 'Email', 'Phone', 'Primary', 'Notes'], ...rows])
 }
 
+export function salespeopleCsv(db: Db): string {
+  const base = db.settings.baseCurrency
+  const rows = [...db.salespeople]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((p) => {
+      const sales = db.sales.filter((s) => s.salespersonId === p.id && s.status !== 'cancelled')
+      const revenue = sales.reduce((sum, s) => sum + saleTotalIn(s, db.settings), 0)
+      const customers = db.customers.filter((c) => c.salespersonId === p.id).length
+      return [p.name, p.email, p.phone, p.active ? 'yes' : 'no', customers, sales.length, revenue]
+    })
+  return toCsv([['Name', 'Email', 'Phone', 'Active', 'Customers', 'Sales', `Revenue in ${base}`], ...rows])
+}
+
 export function productsCsv(db: Db): string {
   const rows = [...db.products]
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -193,5 +212,6 @@ export const CSV_EXPORTS = [
   { file: 'events.csv', label: 'Order events', build: eventsCsv },
   { file: 'customers.csv', label: 'Customers', build: customersCsv },
   { file: 'contacts.csv', label: 'Contacts', build: contactsCsv },
+  { file: 'salespeople.csv', label: 'Sales team', build: salespeopleCsv },
   { file: 'products.csv', label: 'Products', build: productsCsv },
 ] as const

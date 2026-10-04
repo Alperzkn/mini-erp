@@ -53,6 +53,7 @@ export interface Report {
   byProduct: Bucket[]
   byType: Bucket[]
   byCustomer: Bucket[]
+  bySalesperson: Bucket[]
   /** Totals in each sale's own currency (not converted). */
   byCurrency: Bucket[]
 }
@@ -74,6 +75,8 @@ export function buildReport(sales: Sale[], db: Db, mode: RateMode, target: Curre
   const byProduct = new Map<string, Bucket>()
   const byType = new Map<string, Bucket>()
   const byCustomer = new Map<string, Bucket>()
+  const bySalesperson = new Map<string, Bucket>()
+  const reps = new Map(db.salespeople.map((p) => [p.id, p]))
   const byCurrency = new Map<string, Bucket>()
   let revenue = 0
   let paid = 0
@@ -90,6 +93,8 @@ export function buildReport(sales: Sale[], db: Db, mode: RateMode, target: Curre
     addTo(byMonth, month, month, total)
     const c = customers.get(sale.customerId)
     addTo(byCustomer, sale.customerId, c?.name ?? 'Unknown customer', total)
+    const rep = sale.salespersonId ? reps.get(sale.salespersonId) : undefined
+    addTo(bySalesperson, rep?.id ?? 'none', rep?.name ?? 'No rep', total)
     addTo(byCurrency, sale.currency, sale.currency, saleTotal(sale))
 
     for (const { item, amount } of lineShares(sale, db, mode, target)) {
@@ -111,6 +116,7 @@ export function buildReport(sales: Sale[], db: Db, mode: RateMode, target: Curre
     byProduct: sorted(byProduct),
     byType: sorted(byType),
     byCustomer: sorted(byCustomer),
+    bySalesperson: sorted(bySalesperson),
     byCurrency: sorted(byCurrency),
   }
 }

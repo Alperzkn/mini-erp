@@ -58,6 +58,7 @@ export function CustomerDetailPage() {
     ['Country', customer.country],
     ['Tax / VAT ID', customer.taxId],
     ['Currency', customer.currency],
+    ['Sales rep', db.salespeople.find((p) => p.id === customer.salespersonId)?.name],
   ]
 
   return (

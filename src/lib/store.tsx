@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { today, uid } from './format'
 import { normalize } from './migrate'
 import { isSaleNumberTaken } from './sale-number'
-import type { Contact, Customer, Db, EventType, Product, Sale, SaleEvent, Settings } from './types'
+import type { Contact, Customer, Db, EventType, Product, Sale, SaleEvent, Salesperson, Settings } from './types'
 
 type SaveState = 'idle' | 'saving' | 'error'
 
@@ -17,6 +17,8 @@ interface Store {
   deleteContact: (customerId: string, contactId: string) => void
   upsertProduct: (p: Product) => void
   deleteProduct: (id: string) => void
+  upsertSalesperson: (p: Salesperson) => void
+  deleteSalesperson: (id: string) => void
   /**
    * Creates or updates a sale. The sale brings its own number; throws when the
    * number is empty or already used by another sale.
@@ -170,6 +172,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ),
       })),
     upsertProduct: (p) => update((d) => ({ ...d, products: upsert(d.products, p) })),
+    upsertSalesperson: (p) => update((d) => ({ ...d, salespeople: upsert(d.salespeople, p) })),
+    deleteSalesperson: (id) =>
+      update((d) => ({ ...d, salespeople: d.salespeople.filter((p) => p.id !== id) })),
     deleteProduct: (id) =>
       update((d) => ({ ...d, products: d.products.filter((p) => p.id !== id) })),
     upsertSale: (s) => {

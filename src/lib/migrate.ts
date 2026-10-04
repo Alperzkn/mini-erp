@@ -64,6 +64,7 @@ export function normalize(raw: any): Db {
       saleNumberFormat: s.saleNumberFormat ?? legacyFormat(s.salePrefix, (raw.sales ?? []).length > 0),
     },
     customers: (raw.customers ?? []).map(migrateCustomer),
+    salespeople: raw.salespeople ?? [],
     products: (raw.products ?? []).map((p: any) => ({ ...p, currency: p.currency ?? fallback })),
     sales: (raw.sales ?? []).map((x: any) => ({
       ...x,

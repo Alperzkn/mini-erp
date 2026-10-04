@@ -108,6 +108,8 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     return {
       ...blankSale(settings),
       ...(customer?.currency && settings.rates[customer.currency] ? { currency: customer.currency } : {}),
+      // A prefilled company brings its rep along, like picking it in the form does.
+      ...(customer?.salespersonId ? { salespersonId: customer.salespersonId } : {}),
       ...initial,
     }
   })
@@ -174,6 +176,7 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
       ...f,
       customerId: c.id,
       contactId: c.id === f.customerId ? f.contactId : primaryContact(c)?.id,
+      salespersonId: f.salespersonId ?? c.salespersonId,
       // New sales follow the customer's usual currency.
       currency: !sale && c.currency && settings.rates[c.currency] ? c.currency : f.currency,
     }))
@@ -254,7 +257,13 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
 
         <DialogBody className="grid gap-7">
           <FormSection title="Customer">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_2fr_1fr_1fr]">
+            <div
+              className={
+                db.salespeople.length > 0
+                  ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_2fr_1.5fr_1fr_1fr]'
+                  : 'grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_2fr_1fr_1fr]'
+              }
+            >
               <Field label="Company" htmlFor="s-customer" required error={errors.customer}>
                 <Combobox
                   id="s-customer"
@@ -285,6 +294,19 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
                   onCreate={(q) => setContactQuery(q)}
                 />
               </Field>
+              {db.salespeople.length > 0 && (
+                <Field label="Sales rep" htmlFor="s-rep">
+                  <Combobox
+                    id="s-rep"
+                    value={form.salespersonId ?? ''}
+                    onChange={(id) => set('salespersonId', id || undefined)}
+                    options={db.salespeople
+                      .filter((p) => p.active || p.id === form.salespersonId)
+                      .map((p) => ({ value: p.id, label: p.name }))}
+                    placeholder="No rep"
+                  />
+                </Field>
+              )}
               <Field label="Sale date" htmlFor="s-date" required>
                 <Input
                   id="s-date"

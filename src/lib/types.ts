@@ -34,6 +34,16 @@ export interface Contact {
   createdAt: string
 }
 
+/** Someone on your own sales team who looks after customers and brings in orders. */
+export interface Salesperson {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+  active: boolean
+  createdAt: string
+}
+
 /** A customer is a company (or a sole trader) with the people you deal with. */
 export interface Customer {
   id: string
@@ -45,6 +55,8 @@ export interface Customer {
   taxId?: string
   /** Preselected currency for this customer's new sales. */
   currency?: Currency
+  /** The rep on your team responsible for this customer. */
+  salespersonId?: string
   notes?: string
   contacts: Contact[]
   createdAt: string
@@ -85,6 +97,8 @@ export interface Sale {
   customerId: string
   /** A Contact on the customer who placed the order. */
   contactId?: string
+  /** The rep on your team who brought in this order. */
+  salespersonId?: string
   /** YYYY-MM-DD */
   date: string
   currency: Currency
@@ -121,6 +135,7 @@ export interface Db {
   version: 3
   settings: Settings
   customers: Customer[]
+  salespeople: Salesperson[]
   products: Product[]
   sales: Sale[]
 }
@@ -175,6 +190,7 @@ export function emptyDb(): Db {
       saleNumberFormat: DEFAULT_SALE_NUMBER_FORMAT,
     },
     customers: [],
+    salespeople: [],
     products: [],
     sales: [],
   }

@@ -76,6 +76,7 @@ export function CustomersPage() {
                   <TableHead>Contact</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Country</TableHead>
+                  {db.salespeople.length > 0 && <TableHead>Rep</TableHead>}
                   <TableHead className="text-right">Sales</TableHead>
                   <TableHead className="text-right">Revenue ({db.settings.baseCurrency})</TableHead>
                   <TableHead>Last purchase</TableHead>
@@ -103,6 +104,11 @@ export function CustomersPage() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">{c.email || person?.email || '—'}</TableCell>
                       <TableCell>{c.country || '—'}</TableCell>
+                      {db.salespeople.length > 0 && (
+                        <TableCell className="text-muted-foreground">
+                          {db.salespeople.find((p) => p.id === c.salespersonId)?.name || '—'}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right tabular-nums">{count}</TableCell>
                       <TableCell className="text-right font-medium tabular-nums">
                         {formatMoney(revenue, db.settings.baseCurrency)}

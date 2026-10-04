@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Combobox } from '@/components/combobox'
 import { Field } from '@/components/field'
 import { FormSection } from '@/components/form-section'
 import { currencyList, uid } from '@/lib/format'
@@ -178,6 +179,18 @@ function CustomerForm({
             </Field>
             <Field label="Tax / VAT ID" htmlFor="c-tax">
               <Input id="c-tax" value={form.taxId ?? ''} onChange={(e) => set('taxId', e.target.value)} />
+            </Field>
+            <Field label="Sales rep" htmlFor="c-rep" hint="Pre-filled on new sales to this customer.">
+              <Combobox
+                id="c-rep"
+                value={form.salespersonId ?? ''}
+                onChange={(id) => set('salespersonId', id || undefined)}
+                options={db.salespeople
+                  .filter((p) => p.active || p.id === form.salespersonId)
+                  .map((p) => ({ value: p.id, label: p.name }))}
+                placeholder={db.salespeople.length ? 'Nobody yet' : 'Add reps in Admin'}
+                disabled={db.salespeople.length === 0}
+              />
             </Field>
             <Field label="Default currency" hint="Preselected on new sales to this customer.">
               <Select value={form.currency ?? db.settings.baseCurrency} onValueChange={(v) => v && set('currency', v)}>

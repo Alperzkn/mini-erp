@@ -6,14 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PageHeader } from '@/components/page-header'
 import { buildReport, monthLabel, monthRange, type Bucket } from '@/lib/analytics'
-import {
-  addMonths,
-  currencyList,
-  formatCompactMoney,
-  formatMoney,
-  today,
-  type RateMode,
-} from '@/lib/format'
+import { addMonths, currencyList, formatCompactMoney, formatMoney, today, type RateMode } from '@/lib/format'
 import { useStore } from '@/lib/store'
 
 type Period = 'this-month' | 'last-3' | 'last-12' | 'this-year' | 'last-year' | 'all' | 'custom'
@@ -136,10 +129,7 @@ export function InsightsPage() {
   const [period, setPeriod] = useState<Period>('this-year')
   const [currency, setCurrency] = useState(settings.baseCurrency)
   const [mode, setMode] = useState<RateMode>('sale')
-  const earliest = useMemo(
-    () => db.sales.reduce((min, s) => (s.date < min ? s.date : min), today()),
-    [db.sales],
-  )
+  const earliest = useMemo(() => db.sales.reduce((min, s) => (s.date < min ? s.date : min), today()), [db.sales])
   const [custom, setCustom] = useState<[string, string]>(() => periodRange('this-year', earliest))
   const [from, to] = period === 'custom' ? custom : periodRange(period, earliest)
 
@@ -282,6 +272,9 @@ export function InsightsPage() {
           countLabel={units}
         />
         <Breakdown title="By customer" buckets={report.byCustomer} currency={currency} countLabel={salesCount} />
+        {db.salespeople.length > 0 && (
+          <Breakdown title="By sales rep" buckets={report.bySalesperson} currency={currency} countLabel={salesCount} />
+        )}
         <Breakdown title="By product type" buckets={report.byType} currency={currency} />
         <Card>
           <CardHeader>

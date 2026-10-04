@@ -38,6 +38,8 @@ export function SalesTable({
   const { db, upsertSale, deleteSale } = useStore()
   const navigate = useNavigate()
   const customers = new Map(db.customers.map((c) => [c.id, c]))
+  const reps = new Map(db.salespeople.map((p) => [p.id, p.name]))
+  const showRep = db.salespeople.length > 0
   const [editing, setEditing] = useState<Sale | undefined>()
   const [renewing, setRenewing] = useState<Partial<Sale> | undefined>()
   const [deleting, setDeleting] = useState<Sale | undefined>()
@@ -58,6 +60,7 @@ export function SalesTable({
             <TableHead className="text-right">Total</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Renewal</TableHead>
+            {showRep && <TableHead>Rep</TableHead>}
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -111,6 +114,11 @@ export function SalesTable({
                   <StatusBadge status={s.status} />
                 </TableCell>
                 <TableCell className="text-muted-foreground">{formatDate(s.renewalDate)}</TableCell>
+                {showRep && (
+                  <TableCell className="text-muted-foreground">
+                    {(s.salespersonId && reps.get(s.salespersonId)) || '—'}
+                  </TableCell>
+                )}
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

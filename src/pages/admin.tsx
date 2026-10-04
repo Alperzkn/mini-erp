@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
-import { DownloadIcon, PlusIcon, Trash2Icon, UploadIcon } from 'lucide-react'
+import { DownloadIcon, PencilIcon, PlusIcon, Trash2Icon, UploadIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,12 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Field } from '@/components/field'
 import { PageHeader } from '@/components/page-header'
+import { SalespersonDialog } from '@/components/salesperson-dialog'
 import { CSV_EXPORTS } from '@/lib/csv'
 import { download } from '@/lib/download'
 import { pairRate, today } from '@/lib/format'
 import { nextSaleNumber, validateFormat } from '@/lib/sale-number'
 import { useStore } from '@/lib/store'
-import type { Currency, Db, Rates } from '@/lib/types'
+import type { Currency, Db, Rates, Salesperson } from '@/lib/types'
 
 function fmt(n: number): string {
   return String(Number(n.toPrecision(6)))
@@ -213,6 +215,92 @@ function CurrenciesCard() {
   )
 }
 
+function SalesTeamCard() {
+  const { db, deleteSalesperson } = useStore()
+  const [dialog, setDialog] = useState<{ open: boolean; rep?: Salesperson }>({ open: false })
+  const [deleting, setDeleting] = useState<Salesperson | undefined>()
+  const reps = [...db.salespeople].sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name))
+
+  const askDelete = (rep: Salesperson) => {
+    const linked =
+      db.customers.some((c) => c.salespersonId === rep.id) || db.sales.some((s) => s.salespersonId === rep.id)
+    if (linked) {
+      toast.error('This rep is linked to customers or sales. Mark them inactive instead.')
+      return
+    }
+    setDeleting(rep)
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle>Sales team</CardTitle>
+          <CardDescription>
+            Your colleagues who look after customers and bring in orders. Assign one to each company; new sales pick
+            them up automatically.
+          </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setDialog({ open: true })}>
+          <PlusIcon /> Add rep
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {reps.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No reps yet.</p>
+        ) : (
+          <ul className="divide-y">
+            {reps.map((p) => (
+              <li key={p.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{p.name}</span>
+                    {!p.active && <Badge variant="secondary">Inactive</Badge>}
+                  </div>
+                  <div className="text-muted-foreground flex flex-wrap gap-x-4 text-sm">
+                    {p.email && <span>{p.email}</span>}
+                    {p.phone && <span>{p.phone}</span>}
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Edit ${p.name}`}
+                    onClick={() => setDialog({ open: true, rep: p })}
+                  >
+                    <PencilIcon />
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" aria-label={`Remove ${p.name}`} onClick={() => askDelete(p)}>
+                    <Trash2Icon />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+      <SalespersonDialog
+        open={dialog.open}
+        onOpenChange={(open) => setDialog((d) => ({ ...d, open }))}
+        salesperson={dialog.rep}
+      />
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(undefined)}
+        title={`Remove ${deleting?.name}?`}
+        description="This permanently removes the rep from your team."
+        confirmLabel="Remove"
+        onConfirm={() => {
+          if (deleting) deleteSalesperson(deleting.id)
+          setDeleting(undefined)
+          toast.success('Rep removed')
+        }}
+      />
+    </Card>
+  )
+}
+
 export function AdminPage() {
   // Bumped after a restore so every form re-reads the restored settings.
   const [version, setVersion] = useState(0)
@@ -295,6 +383,8 @@ function AdminContent({ onRestored }: { onRestored: () => void }) {
             </CardFooter>
           </form>
         </Card>
+
+        <SalesTeamCard />
 
         <CurrenciesCard />
 

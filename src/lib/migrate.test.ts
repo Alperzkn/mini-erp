@@ -53,6 +53,12 @@ describe('normalize v2 → v3', () => {
     expect(db.settings.saleNumberFormat).toBe('S-{####}')
   })
 
+  it('adds an empty sales team and passes an existing one through', () => {
+    expect(normalize({}).salespeople).toEqual([])
+    const reps = [{ id: 'r', name: 'R', active: true, createdAt: 'x' }]
+    expect(normalize({ version: 3, salespeople: reps }).salespeople).toEqual(reps)
+  })
+
   it('returns an empty db for null', () => {
     expect(normalize(null).customers).toEqual([])
   })

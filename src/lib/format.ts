@@ -158,6 +158,7 @@ export function renewalOf(sale: Sale): Partial<Sale> {
   return {
     customerId: sale.customerId,
     contactId: sale.contactId,
+    salespersonId: sale.salespersonId,
     date,
     items: sale.items.map((i) => ({ ...i, id: uid() })),
     discount: sale.discount,
