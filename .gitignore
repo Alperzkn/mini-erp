@@ -25,3 +25,4 @@ dist-ssr
 
 # Local business data (keep out of git)
 data/
+.superpowers/
