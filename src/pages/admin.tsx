@@ -187,7 +187,7 @@ function CurrenciesCard() {
         </div>
         <div className="flex items-center gap-2">
           <Input
-            className="h-8 w-28 font-mono uppercase"
+            className="h-9 w-28 font-mono uppercase"
             placeholder="GBP"
             maxLength={3}
             value={newCode}

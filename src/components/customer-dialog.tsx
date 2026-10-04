@@ -188,7 +188,7 @@ function CustomerForm({
                 options={db.salespeople
                   .filter((p) => p.active || p.id === form.salespersonId)
                   .map((p) => ({ value: p.id, label: p.name }))}
-                placeholder={db.salespeople.length ? 'Nobody yet' : 'Add reps in Admin'}
+                placeholder={db.salespeople.length ? 'Nobody yet' : 'Add reps on the Sales team page'}
                 disabled={db.salespeople.length === 0}
               />
             </Field>
@@ -277,6 +277,7 @@ function CustomerForm({
                         onChange={() => setPrimary(p.id)}
                         aria-label={`${p.name || 'This person'} is the primary contact`}
                       />
+                      <span className="sm:hidden">Primary</span>
                     </label>
                     <Button
                       type="button"

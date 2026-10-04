@@ -106,7 +106,13 @@ export function CustomersPage() {
                       <TableCell>{c.country || '—'}</TableCell>
                       {db.salespeople.length > 0 && (
                         <TableCell className="text-muted-foreground">
-                          {db.salespeople.find((p) => p.id === c.salespersonId)?.name || '—'}
+                          {c.salespersonId && db.salespeople.some((p) => p.id === c.salespersonId) ? (
+                            <Link to={`/team/${c.salespersonId}`} className="hover:underline">
+                              {db.salespeople.find((p) => p.id === c.salespersonId)?.name}
+                            </Link>
+                          ) : (
+                            '—'
+                          )}
                         </TableCell>
                       )}
                       <TableCell className="text-right tabular-nums">{count}</TableCell>

@@ -77,7 +77,7 @@ export function EventForm({ onAdd }: { onAdd: (e: Omit<SaleEvent, 'id' | 'create
         <Input
           type="date"
           aria-label="Event date"
-          className="h-8 w-40"
+          className="h-9 w-40"
           value={date}
           onChange={(e) => setDate(e.target.value)}
         />

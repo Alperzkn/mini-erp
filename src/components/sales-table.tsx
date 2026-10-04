@@ -116,7 +116,17 @@ export function SalesTable({
                 <TableCell className="text-muted-foreground">{formatDate(s.renewalDate)}</TableCell>
                 {showRep && (
                   <TableCell className="text-muted-foreground">
-                    {(s.salespersonId && reps.get(s.salespersonId)) || '—'}
+                    {s.salespersonId && reps.get(s.salespersonId) ? (
+                      <Link
+                        to={`/team/${s.salespersonId}`}
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {reps.get(s.salespersonId)}
+                      </Link>
+                    ) : (
+                      '—'
+                    )}
                   </TableCell>
                 )}
                 <TableCell onClick={(e) => e.stopPropagation()}>
