@@ -25,6 +25,7 @@ import {
   addMonths,
   convert,
   currencyList,
+  daysBetween,
   formatMoney,
   formatRate,
   itemTotal,
@@ -33,6 +34,7 @@ import {
   round2,
   saleSubtotal,
   saleTotal,
+  shiftDays,
   today,
   uid,
 } from '@/lib/format'
@@ -288,7 +290,16 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
                   type="date"
                   required
                   value={form.date}
-                  onChange={(e) => set('date', e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value
+                    // A renewal keeps its distance from the sale date.
+                    setForm((f) => ({
+                      ...f,
+                      date: next,
+                      renewalDate:
+                        f.renewalDate && next ? shiftDays(f.renewalDate, daysBetween(f.date, next)) : f.renewalDate,
+                    }))
+                  }}
                 />
               </Field>
               <Field label="Currency">

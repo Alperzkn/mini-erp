@@ -31,6 +31,24 @@ export function addMonths(iso: string, months: number): string {
   return toIsoDate(d)
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Whole days from `fromIso` to `toIso` (negative when going back); 0 when either is not a full date. */
+export function daysBetween(fromIso: string, toIso: string): number {
+  if (!ISO_DATE.test(fromIso) || !ISO_DATE.test(toIso)) return 0
+  const utc = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number)
+    return Date.UTC(y, m - 1, d)
+  }
+  return Math.round((utc(toIso) - utc(fromIso)) / 86_400_000)
+}
+
+export function shiftDays(iso: string, days: number): string {
+  const d = parseIsoDate(iso)
+  d.setDate(d.getDate() + days)
+  return toIsoDate(d)
+}
+
 export function daysUntil(iso: string): number {
   const ms = parseIsoDate(iso).getTime() - parseIsoDate(today()).getTime()
   return Math.round(ms / 86_400_000)
