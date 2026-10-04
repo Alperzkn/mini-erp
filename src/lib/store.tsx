@@ -29,6 +29,8 @@ interface Store {
   deleteEvent: (saleId: string, eventId: string) => void
   updateSettings: (s: Partial<Settings>) => void
   replaceDb: (db: Db) => void
+  /** Re-reads the database from the server, e.g. after the data folder changed. */
+  reload: () => Promise<void>
 }
 
 const StoreContext = createContext<Store | null>(null)
@@ -49,6 +51,12 @@ function withContacts(c: Customer): Customer {
     ...c,
     contacts: contacts.map((p) => ({ ...p, primary: p === firstPrimary })),
   }
+}
+
+async function fetchDb(): Promise<Db> {
+  const r = await fetch('/api/db')
+  if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  return normalize(await r.json())
 }
 
 function event(type: EventType, note: string, date = today()): SaleEvent {
@@ -103,19 +111,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     saving.current = false
   }, [])
 
+  const load = useCallback(
+    () =>
+      fetchDb().then((fresh) => {
+        // Marked as loaded so it is not written straight back to the server.
+        loadedDb.current = fresh
+        setDb(fresh)
+      }),
+    [],
+  )
+
   useEffect(() => {
-    fetch('/api/db')
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((data: unknown) => {
-        const initial = normalize(data)
-        loadedDb.current = initial
-        setDb(initial)
-      })
-      .catch((err: Error) => setLoadError(err.message))
-  }, [])
+    load().catch((err: Error) => setLoadError(err.message))
+  }, [load])
 
   useEffect(() => {
     if (!db || db === loadedDb.current) return
@@ -151,8 +159,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     db,
     saveState,
     upsertCustomer: (c) => update((d) => ({ ...d, customers: upsert(d.customers, withContacts(c)) })),
-    deleteCustomer: (id) =>
-      update((d) => ({ ...d, customers: d.customers.filter((c) => c.id !== id) })),
+    deleteCustomer: (id) => update((d) => ({ ...d, customers: d.customers.filter((c) => c.id !== id) })),
     upsertContact: (customerId, contact) =>
       update((d) => ({
         ...d,
@@ -173,10 +180,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })),
     upsertProduct: (p) => update((d) => ({ ...d, products: upsert(d.products, p) })),
     upsertSalesperson: (p) => update((d) => ({ ...d, salespeople: upsert(d.salespeople, p) })),
-    deleteSalesperson: (id) =>
-      update((d) => ({ ...d, salespeople: d.salespeople.filter((p) => p.id !== id) })),
-    deleteProduct: (id) =>
-      update((d) => ({ ...d, products: d.products.filter((p) => p.id !== id) })),
+    deleteSalesperson: (id) => update((d) => ({ ...d, salespeople: d.salespeople.filter((p) => p.id !== id) })),
+    deleteProduct: (id) => update((d) => ({ ...d, products: d.products.filter((p) => p.id !== id) })),
     upsertSale: (s) => {
       // Validate against the current state before queueing the update, so the
       // error reaches the caller instead of surfacing during render.
@@ -201,18 +206,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       update((d) => ({
         ...d,
         sales: d.sales.map((x) =>
-          x.id === saleId ? { ...x, events: [...x.events, { ...e, id: uid(), createdAt: new Date().toISOString() }] } : x,
+          x.id === saleId
+            ? { ...x, events: [...x.events, { ...e, id: uid(), createdAt: new Date().toISOString() }] }
+            : x,
         ),
       })),
     deleteEvent: (saleId, eventId) =>
       update((d) => ({
         ...d,
-        sales: d.sales.map((x) =>
-          x.id === saleId ? { ...x, events: x.events.filter((e) => e.id !== eventId) } : x,
-        ),
+        sales: d.sales.map((x) => (x.id === saleId ? { ...x, events: x.events.filter((e) => e.id !== eventId) } : x)),
       })),
     updateSettings: (s) => update((d) => ({ ...d, settings: { ...d.settings, ...s } })),
     replaceDb: (next) => update(() => normalize(next)),
+    reload: load,
   }
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>

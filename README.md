@@ -67,8 +67,13 @@ npm start        # opens http://localhost:5173 in your browser
 | `data/csv/*.csv` | Spreadsheet copies (sales, sale items, order events, customers, contacts, products), rewritten on every save. |
 
 `data/` is in `.gitignore`, so business data is never committed. Back up the folder
-(Dropbox, iCloud, an external drive...) or use **Admin → Download backup**. To store the data
-somewhere else, set `MINI_ERP_DATA_DIR`:
+(Dropbox, iCloud, an external drive...) or use **Admin → Download backup**.
+
+To keep the data somewhere else, open **Admin → Data location**, type a folder and choose
+**Move data here** (copies the database, backups and CSV files there and switches) or **Use this
+folder** (switches to whatever is there, or starts empty). The choice is saved in
+`~/.config/mini-erp/config.json` and survives restarts. The `MINI_ERP_DATA_DIR` environment
+variable still takes precedence when set, which is handy for a one-off run:
 
 ```bash
 MINI_ERP_DATA_DIR=~/Dropbox/mini-erp npm start
@@ -79,12 +84,13 @@ on your network.
 
 ## How it works
 
-There is no separate backend. A small Vite plugin (`server/json-db.ts`) adds two
+There is no separate backend. A small Vite plugin (`server/json-db.ts`) adds a few
 endpoints to the dev server:
 
 - `GET /api/db` returns the whole database
 - `PUT /api/db` replaces it, writing atomically (temp file + rename), then refreshes
   the CSV copies
+- `GET /api/storage` and `PUT /api/storage` read and change the data folder
 
 The React app loads everything at startup, keeps it in memory, and saves after every
 change. For one person's sales data this stays fast for years of records.

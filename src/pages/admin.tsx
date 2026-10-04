@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { DownloadIcon, PencilIcon, PlusIcon, Trash2Icon, UploadIcon } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { DownloadIcon, FolderIcon, PencilIcon, PlusIcon, Trash2Icon, UploadIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,7 @@ import { CSV_EXPORTS } from '@/lib/csv'
 import { download } from '@/lib/download'
 import { pairRate, today } from '@/lib/format'
 import { nextSaleNumber, validateFormat } from '@/lib/sale-number'
+import { getStorage, setStorage, type StorageInfo, type StorageMode } from '@/lib/storage'
 import { useStore } from '@/lib/store'
 import type { Currency, Db, Rates, Salesperson } from '@/lib/types'
 
@@ -301,6 +302,108 @@ function SalesTeamCard() {
   )
 }
 
+function DataLocationCard({ onChanged }: { onChanged: () => void }) {
+  const { reload } = useStore()
+  const [info, setInfo] = useState<StorageInfo | null>(null)
+  const [loadError, setLoadError] = useState<string>()
+  const [target, setTarget] = useState('')
+  const [pending, setPending] = useState<StorageMode | undefined>()
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    getStorage()
+      .then(setInfo)
+      .catch((err: Error) => setLoadError(err.message))
+  }, [])
+
+  const locked = info?.source === 'env'
+  const path = target.trim()
+
+  const apply = async (mode: StorageMode) => {
+    setBusy(true)
+    try {
+      const next = await setStorage(path, mode)
+      setInfo(next)
+      setTarget('')
+      await reload()
+      onChanged()
+      toast.success(`Now using ${next.dataDir}`)
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setBusy(false)
+      setPending(undefined)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Data location</CardTitle>
+        <CardDescription>
+          The folder that holds <code className="bg-muted rounded px-1">db.json</code>, backups and CSV copies. Point it
+          at a synced folder to keep your data off this machine too.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="bg-muted/40 flex items-start gap-3 rounded-lg border px-3 py-2.5">
+          <FolderIcon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+          <div className="min-w-0 text-sm">
+            <div className="font-mono break-all">{info?.dataDir ?? (loadError ? 'Unavailable' : 'Loading…')}</div>
+            <div className="text-muted-foreground text-xs">
+              {loadError
+                ? `Could not read the setting: ${loadError}`
+                : info?.source === 'env'
+                  ? 'Set by the MINI_ERP_DATA_DIR environment variable. Unset it to change the folder here.'
+                  : info?.source === 'config'
+                    ? 'Chosen here in Admin. Saved in ~/.config/mini-erp/config.json.'
+                    : 'The default folder next to the app.'}
+            </div>
+          </div>
+        </div>
+        <Field
+          label="New folder"
+          htmlFor="ad-folder"
+          hint="An absolute path, or one starting with ~ for your home folder. It is created if it doesn't exist."
+        >
+          <Input
+            id="ad-folder"
+            className="font-mono"
+            placeholder="~/Dropbox/mini-erp"
+            disabled={locked || !info}
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+          />
+        </Field>
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={locked || !path || busy} onClick={() => setPending('move')}>
+            Move data here
+          </Button>
+          <Button variant="outline" disabled={locked || !path || busy} onClick={() => setPending('use')}>
+            Use this folder
+          </Button>
+        </div>
+      </CardContent>
+      <ConfirmDialog
+        open={pending === 'move'}
+        onOpenChange={(o) => !o && setPending(undefined)}
+        title="Move your data?"
+        description={`Copies your database, backups and CSV files to ${path} and switches to it. The current folder is left untouched.`}
+        confirmLabel="Move data"
+        onConfirm={() => void apply('move')}
+      />
+      <ConfirmDialog
+        open={pending === 'use'}
+        onOpenChange={(o) => !o && setPending(undefined)}
+        title="Switch folder?"
+        description={`Switches to ${path}. If it has no database yet you start empty; your current data stays where it is.`}
+        confirmLabel="Switch"
+        onConfirm={() => void apply('use')}
+      />
+    </Card>
+  )
+}
+
 export function AdminPage() {
   // Bumped after a restore so every form re-reads the restored settings.
   const [version, setVersion] = useState(0)
@@ -413,8 +516,8 @@ function AdminContent({ onRestored }: { onRestored: () => void }) {
           <CardHeader>
             <CardTitle>Backup & restore</CardTitle>
             <CardDescription>
-              Everything is stored in <code className="bg-muted rounded px-1">data/db.json</code>, with a daily copy in{' '}
-              <code className="bg-muted rounded px-1">data/backups/</code>.
+              Everything is stored in <code className="bg-muted rounded px-1">db.json</code> in your data folder, with a
+              daily copy in <code className="bg-muted rounded px-1">backups/</code> next to it.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
@@ -436,6 +539,8 @@ function AdminContent({ onRestored }: { onRestored: () => void }) {
             />
           </CardContent>
         </Card>
+
+        <DataLocationCard onChanged={onRestored} />
       </div>
 
       <ConfirmDialog
