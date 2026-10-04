@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import { Combobox } from '@/components/combobox'
+import { NumberInput } from '@/components/number-input'
 import { ContactDialog } from '@/components/contact-dialog'
 import { CustomerDialog } from '@/components/customer-dialog'
 import { Field } from '@/components/field'
@@ -374,27 +375,25 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
                         value={item.description}
                         onChange={(e) => setItem(item.id, { description: e.target.value })}
                       />
-                      <Input
-                        type="number"
+                      <NumberInput
                         min="0"
                         step="any"
                         aria-label="Quantity"
                         aria-invalid={!!err && !!item.productId}
                         className="text-right tabular-nums"
                         value={item.quantity}
-                        onChange={(e) => {
-                          setItem(item.id, { quantity: e.target.valueAsNumber || 0 })
+                        onChange={(quantity) => {
+                          setItem(item.id, { quantity })
                           clearError(`item-${item.id}`)
                         }}
                       />
-                      <Input
-                        type="number"
+                      <NumberInput
                         min="0"
                         step="0.01"
                         aria-label="Unit price"
                         className="text-right tabular-nums"
                         value={item.unitPrice}
-                        onChange={(e) => setItem(item.id, { unitPrice: e.target.valueAsNumber || 0 })}
+                        onChange={(unitPrice) => setItem(item.id, { unitPrice })}
                       />
                       <div className="text-right text-sm font-medium tabular-nums">
                         {formatMoney(itemTotal(item), currency)}
@@ -439,14 +438,13 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
                 <label htmlFor="s-discount" className="text-muted-foreground">
                   Discount
                 </label>
-                <Input
+                <NumberInput
                   id="s-discount"
-                  type="number"
                   min="0"
                   step="0.01"
                   className="bg-background h-8 w-28 text-right tabular-nums"
                   value={form.discount}
-                  onChange={(e) => set('discount', e.target.valueAsNumber || 0)}
+                  onChange={(discount) => set('discount', discount)}
                 />
               </div>
               <Separator className="my-1" />
@@ -465,16 +463,13 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
                       Rate: 1 {currency} =
                     </label>
                     <div className="flex items-center gap-1">
-                      <Input
+                      <NumberInput
                         id="s-rate"
-                        // Re-mount when the currency changes so the field shows the new pair.
-                        key={currency}
-                        type="number"
                         min="0"
                         step="any"
                         className="bg-background h-8 w-28 text-right tabular-nums"
-                        defaultValue={Number(rateToBase.toPrecision(6))}
-                        onChange={(e) => setRateToBase(e.target.valueAsNumber)}
+                        value={Number(rateToBase.toPrecision(6))}
+                        onChange={setRateToBase}
                       />
                       <span className="text-muted-foreground text-xs">{base}</span>
                     </div>

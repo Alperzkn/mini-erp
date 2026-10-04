@@ -68,6 +68,7 @@ function RateRow({
           step="any"
           className="h-8 w-32 text-right"
           value={fwd}
+          onFocus={(e) => e.target.select()}
           onChange={(e) => update(e.target.value, false)}
           aria-invalid={!(Number(fwd) > 0)}
         />
@@ -81,6 +82,7 @@ function RateRow({
           step="any"
           className="h-8 w-32 text-right"
           value={inv}
+          onFocus={(e) => e.target.select()}
           onChange={(e) => update(e.target.value, true)}
           aria-invalid={!(Number(inv) > 0)}
         />

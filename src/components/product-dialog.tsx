@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Field } from '@/components/field'
+import { NumberInput } from '@/components/number-input'
 import { FormSection } from '@/components/form-section'
 import { currencyList, uid } from '@/lib/format'
 import { useStore } from '@/lib/store'
@@ -157,14 +158,13 @@ function ProductForm({
             hint="Converted with the current rates when added to a sale in another currency."
           >
             <div className="flex gap-2">
-              <Input
+              <NumberInput
                 id="p-price"
-                type="number"
                 min="0"
                 step="0.01"
                 className="text-right tabular-nums"
                 value={form.price}
-                onChange={(e) => set('price', e.target.valueAsNumber || 0)}
+                onChange={(price) => set('price', price)}
               />
               <Select value={form.currency} onValueChange={(v) => v && set('currency', v)}>
                 <SelectTrigger className="w-28" aria-label="Currency">
