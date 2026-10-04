@@ -57,7 +57,12 @@ export function Combobox({
   useEffect(() => {
     if (!open) return
     setQuery('')
-    setActive(Math.max(0, options.findIndex((o) => o.value === value)))
+    setActive(
+      Math.max(
+        0,
+        options.findIndex((o) => o.value === value),
+      ),
+    )
     const t = setTimeout(() => inputRef.current?.focus(), 0)
     return () => clearTimeout(t)
     // Only runs when the popover opens.

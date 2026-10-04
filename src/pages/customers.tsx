@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CustomerDialog } from '@/components/customer-dialog'
 import { PageHeader } from '@/components/page-header'
-import { countsAsRevenue, formatDate, formatMoney, saleTotalIn } from '@/lib/format'
+import { countsAsRevenue, formatDate, formatMoney, primaryContact, saleTotalIn } from '@/lib/format'
 import { useStore } from '@/lib/store'
 
 export function CustomersPage() {
@@ -27,8 +27,18 @@ export function CustomersPage() {
     }
     const q = query.trim().toLowerCase()
     return db.customers
-      .filter((c) => !q || [c.name, c.email, c.country, ...c.contacts.flatMap((p) => [p.name, p.email])].join(' ').toLowerCase().includes(q))
-      .map((c) => ({ customer: c, ...(stats.get(c.id) ?? { count: 0, revenue: 0 }) }))
+      .filter(
+        (c) =>
+          !q ||
+          [c.name, c.email, c.country, ...c.contacts.flatMap((p) => [p.name, p.email])]
+            .join(' ')
+            .toLowerCase()
+            .includes(q),
+      )
+      .map((c) => ({
+        customer: c,
+        ...(stats.get(c.id) ?? { count: 0, revenue: 0 }),
+      }))
       .sort((a, b) => b.revenue - a.revenue || a.customer.name.localeCompare(b.customer.name))
   }, [db.customers, db.sales, db.settings, query])
 
@@ -45,7 +55,12 @@ export function CustomersPage() {
       />
       <div className="relative mb-4 w-full sm:w-72">
         <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-        <Input className="pl-9" placeholder="Search customers…" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Input
+          className="pl-9"
+          placeholder="Search customers…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
       </div>
       <Card className="py-2">
         <CardContent className="px-2">
@@ -57,8 +72,8 @@ export function CustomersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
                   <TableHead>Company</TableHead>
+                  <TableHead>Contact</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Country</TableHead>
                   <TableHead className="text-right">Sales</TableHead>
@@ -67,23 +82,35 @@ export function CustomersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map(({ customer: c, count, revenue, last }) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">
-                      <Link to={`/customers/${c.id}`} className="hover:underline">
-                        {c.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{(c.contacts.find((p) => p.primary) ?? c.contacts[0])?.name || '—'}</TableCell>
-                    <TableCell className="text-muted-foreground">{c.email || '—'}</TableCell>
-                    <TableCell>{c.country || '—'}</TableCell>
-                    <TableCell className="text-right tabular-nums">{count}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {formatMoney(revenue, db.settings.baseCurrency)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(last)}</TableCell>
-                  </TableRow>
-                ))}
+                {rows.map(({ customer: c, count, revenue, last }) => {
+                  const person = primaryContact(c)
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">
+                        <Link to={`/customers/${c.id}`} className="hover:underline">
+                          {c.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        {person ? (
+                          <>
+                            {person.name}
+                            {person.role && <span className="text-muted-foreground"> · {person.role}</span>}
+                          </>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{c.email || person?.email || '—'}</TableCell>
+                      <TableCell>{c.country || '—'}</TableCell>
+                      <TableCell className="text-right tabular-nums">{count}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {formatMoney(revenue, db.settings.baseCurrency)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(last)}</TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}
