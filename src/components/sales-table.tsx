@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CheckIcon, EyeIcon, MessageSquareIcon, MoreHorizontalIcon, PencilIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react'
+import {
+  CheckIcon,
+  EyeIcon,
+  MessageSquareIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -67,20 +75,28 @@ export function SalesTable({
                 {showCustomer && (
                   <TableCell>
                     {c ? (
-                      <Link
-                        to={`/customers/${c.id}`}
-                        className="hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {c.name}
-                      </Link>
+                      <>
+                        <Link
+                          to={`/customers/${c.id}`}
+                          className="hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {c.name}
+                        </Link>
+                        {(() => {
+                          const p = c.contacts.find((x) => x.id === s.contactId)
+                          return p ? <span className="text-muted-foreground"> · {p.name}</span> : null
+                        })()}
+                      </>
                     ) : (
                       <span className="text-muted-foreground">Unknown</span>
                     )}
                   </TableCell>
                 )}
                 <TableCell className="max-w-72 truncate" title={s.items.map((i) => i.description).join(', ')}>
-                  {s.items.map((i) => (i.quantity !== 1 ? `${i.quantity}× ${i.description}` : i.description)).join(', ')}
+                  {s.items
+                    .map((i) => (i.quantity !== 1 ? `${i.quantity}× ${i.description}` : i.description))
+                    .join(', ')}
                   {s.events.some((e) => e.type !== 'system') && (
                     <MessageSquareIcon
                       className="text-muted-foreground ml-1.5 inline size-3.5 align-[-2px]"

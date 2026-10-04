@@ -10,7 +10,8 @@ import { Field } from '@/components/field'
 import { PageHeader } from '@/components/page-header'
 import { CSV_EXPORTS } from '@/lib/csv'
 import { download } from '@/lib/download'
-import { pairRate } from '@/lib/format'
+import { pairRate, today } from '@/lib/format'
+import { nextSaleNumber, validateFormat } from '@/lib/sale-number'
 import { useStore } from '@/lib/store'
 import type { Currency, Db, Rates } from '@/lib/types'
 
@@ -109,8 +110,7 @@ function CurrenciesCard() {
   const codes = Object.keys(rates)
   const dirty = base !== settings.baseCurrency || JSON.stringify(rates) !== JSON.stringify(settings.rates)
 
-  const setToBase = (c: Currency, toBase: number) =>
-    setRates((r) => ({ ...r, [c]: r[base] / toBase }))
+  const setToBase = (c: Currency, toBase: number) => setRates((r) => ({ ...r, [c]: r[base] / toBase }))
 
   const add = () => {
     const code = newCode.trim().toUpperCase()
@@ -148,8 +148,8 @@ function CurrenciesCard() {
       <CardHeader>
         <CardTitle>Currencies & exchange rates</CardTitle>
         <CardDescription>
-          Every sale keeps its own currency. Dashboards and reports convert to the reporting currency. New sales
-          save the rates of the day, so changing rates here never changes past sales.
+          Every sale keeps its own currency. Dashboards and reports convert to the reporting currency. New sales save
+          the rates of the day, so changing rates here never changes past sales.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -227,8 +227,12 @@ function AdminContent({ onRestored }: { onRestored: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const stamp = new Date().toISOString().slice(0, 10)
 
+  const formatError = validateFormat(business.saleNumberFormat)
+  const preview = formatError ? undefined : nextSaleNumber(business.saleNumberFormat, today(), db.sales)
+
   const saveBusiness = (e: React.FormEvent) => {
     e.preventDefault()
+    if (formatError) return
     updateSettings({
       businessName: business.businessName.trim() || 'My Software Business',
       saleNumberFormat: business.saleNumberFormat,
@@ -259,24 +263,33 @@ function AdminContent({ onRestored }: { onRestored: () => void }) {
             <CardHeader>
               <CardTitle>Business</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-3">
-              <Field label="Business name" htmlFor="ad-name" className="sm:col-span-2">
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <Field label="Business name" htmlFor="ad-name">
                 <Input
                   id="ad-name"
                   value={business.businessName}
                   onChange={(e) => setBusiness({ ...business, businessName: e.target.value })}
                 />
               </Field>
-              <Field label="Sale number format" htmlFor="ad-format">
+              <Field
+                label="Sale number format"
+                htmlFor="ad-format"
+                required
+                error={formatError ?? undefined}
+                hint={`Next number today: ${preview}. Tokens: {YYYY} {YY} {MM} {DD} and one {####} for the sequence, which restarts whenever the date part changes.`}
+              >
                 <Input
                   id="ad-format"
+                  className="font-mono"
                   value={business.saleNumberFormat}
                   onChange={(e) => setBusiness({ ...business, saleNumberFormat: e.target.value })}
                 />
               </Field>
             </CardContent>
             <CardFooter>
-              <Button type="submit">Save</Button>
+              <Button type="submit" disabled={!!formatError}>
+                Save
+              </Button>
             </CardFooter>
           </form>
         </Card>
@@ -315,9 +328,7 @@ function AdminContent({ onRestored }: { onRestored: () => void }) {
           <CardContent className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              onClick={() =>
-                download(`mini-erp-backup-${stamp}.json`, JSON.stringify(db, null, 2), 'application/json')
-              }
+              onClick={() => download(`mini-erp-backup-${stamp}.json`, JSON.stringify(db, null, 2), 'application/json')}
             >
               <DownloadIcon /> Download backup (JSON)
             </Button>
@@ -351,4 +362,3 @@ function AdminContent({ onRestored }: { onRestored: () => void }) {
     </>
   )
 }
-

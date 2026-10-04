@@ -65,6 +65,10 @@ export function SaleDetailPage() {
         'Unknown'
       ),
     ],
+    ...((): [string, React.ReactNode][] => {
+      const p = customer?.contacts.find((x) => x.id === sale.contactId)
+      return p ? [['Contact', [p.name, p.role].filter(Boolean).join(', ')]] : []
+    })(),
     ['Sale date', formatDate(sale.date)],
     ['Status', <StatusBadge key="s" status={sale.status} />],
     ['Paid on', formatDate(sale.paidDate)],

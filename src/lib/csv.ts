@@ -28,22 +28,46 @@ export function salesCsv(db: Db): string {
   const rows = bySaleDate(db).map((s) => {
     const c = customers.get(s.customerId)
     return [
-      s.number, s.date, c?.name, c?.contacts.find((p) => p.id === s.contactId)?.name, s.currency,
-      saleSubtotal(s), s.discount || 0, saleTotal(s),
-      pairRate(s.currency, base, ratesForSale(s, db.settings)), saleTotalIn(s, db.settings),
-      s.status, s.paidDate, s.paymentMethod, s.renewalDate,
+      s.number,
+      s.date,
+      c?.name,
+      c?.contacts.find((p) => p.id === s.contactId)?.name,
+      s.currency,
+      saleSubtotal(s),
+      s.discount || 0,
+      saleTotal(s),
+      pairRate(s.currency, base, ratesForSale(s, db.settings)),
+      saleTotalIn(s, db.settings),
+      s.status,
+      s.paidDate,
+      s.paymentMethod,
+      s.renewalDate,
       s.renewsSaleId ? numbers.get(s.renewsSaleId) : '',
       s.items.map((i) => `${i.quantity} x ${i.description}`).join('; '),
-      s.events.length, s.notes,
+      s.events.length,
+      s.notes,
     ]
   })
   return toCsv([
     [
-      'Number', 'Date', 'Customer', 'Contact', 'Currency',
-      'Subtotal', 'Discount', 'Total',
-      `Rate to ${base}`, `Total in ${base}`,
-      'Status', 'Paid date', 'Payment method', 'Renewal date', 'Renews sale',
-      'Items', 'Events', 'Notes',
+      'Number',
+      'Date',
+      'Customer',
+      'Contact',
+      'Currency',
+      'Subtotal',
+      'Discount',
+      'Total',
+      `Rate to ${base}`,
+      `Total in ${base}`,
+      'Status',
+      'Paid date',
+      'Payment method',
+      'Renewal date',
+      'Renews sale',
+      'Items',
+      'Events',
+      'Notes',
     ],
     ...rows,
   ])
@@ -57,17 +81,35 @@ export function saleItemsCsv(db: Db): string {
     lineShares(s, db, 'sale', base).map(({ item, amount }) => {
       const p = item.productId ? products.get(item.productId) : undefined
       return [
-        s.number, s.date, customers.get(s.customerId)?.name, s.status,
-        p?.name ?? '', p?.type ?? 'custom', item.description,
-        item.quantity, item.unitPrice, s.currency, itemTotal(item),
+        s.number,
+        s.date,
+        customers.get(s.customerId)?.name,
+        s.status,
+        p?.name ?? '',
+        p?.type ?? 'custom',
+        item.description,
+        item.quantity,
+        item.unitPrice,
+        s.currency,
+        itemTotal(item),
         s.status === 'cancelled' ? 0 : amount,
       ]
     }),
   )
   return toCsv([
     [
-      'Sale', 'Date', 'Customer', 'Status', 'Product', 'Product type', 'Description',
-      'Quantity', 'Unit price', 'Currency', 'Line total', `Revenue in ${base} (after discount)`,
+      'Sale',
+      'Date',
+      'Customer',
+      'Status',
+      'Product',
+      'Product type',
+      'Description',
+      'Quantity',
+      'Unit price',
+      'Currency',
+      'Line total',
+      `Revenue in ${base} (after discount)`,
     ],
     ...rows,
   ])
@@ -90,18 +132,52 @@ export function customersCsv(db: Db): string {
     .map((c) => {
       const sales = db.sales.filter((s) => s.customerId === c.id && s.status !== 'cancelled')
       const revenue = sales.reduce((sum, s) => sum + saleTotalIn(s, db.settings), 0)
+      const main = primaryContact(c)
       return [
-        c.name, primaryContact(c)?.name, c.email, c.phone, c.country, c.taxId, c.currency,
-        sales.length, revenue, c.createdAt.slice(0, 10), c.notes,
+        c.name,
+        main?.name,
+        main?.email,
+        c.email,
+        c.phone,
+        c.website,
+        c.country,
+        c.taxId,
+        c.currency,
+        sales.length,
+        revenue,
+        c.createdAt.slice(0, 10),
+        c.notes,
       ]
     })
   return toCsv([
     [
-      'Company', 'Primary contact', 'Email', 'Phone', 'Country', 'Tax ID', 'Default currency',
-      'Sales', `Revenue in ${base}`, 'Created', 'Notes',
+      'Company',
+      'Primary contact',
+      'Contact email',
+      'Email',
+      'Phone',
+      'Website',
+      'Country',
+      'Tax ID',
+      'Default currency',
+      'Sales',
+      `Revenue in ${base}`,
+      'Created',
+      'Notes',
     ],
     ...rows,
   ])
+}
+
+export function contactsCsv(db: Db): string {
+  const rows = [...db.customers]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap((c) =>
+      [...c.contacts]
+        .sort((a, b) => Number(!!b.primary) - Number(!!a.primary) || a.name.localeCompare(b.name))
+        .map((p) => [c.name, p.name, p.role, p.email, p.phone, p.primary ? 'yes' : 'no', p.notes]),
+    )
+  return toCsv([['Company', 'Name', 'Role', 'Email', 'Phone', 'Primary', 'Notes'], ...rows])
 }
 
 export function productsCsv(db: Db): string {
@@ -116,5 +192,6 @@ export const CSV_EXPORTS = [
   { file: 'sale-items.csv', label: 'Sale items', build: saleItemsCsv },
   { file: 'events.csv', label: 'Order events', build: eventsCsv },
   { file: 'customers.csv', label: 'Customers', build: customersCsv },
+  { file: 'contacts.csv', label: 'Contacts', build: contactsCsv },
   { file: 'products.csv', label: 'Products', build: productsCsv },
 ] as const
