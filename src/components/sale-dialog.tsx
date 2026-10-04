@@ -108,8 +108,8 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     return {
       ...blankSale(settings),
       ...(customer?.currency && settings.rates[customer.currency] ? { currency: customer.currency } : {}),
-      // A prefilled company brings its rep along, like picking it in the form does.
-      ...(customer?.salespersonId ? { salespersonId: customer.salespersonId } : {}),
+      // A prefilled company brings its primary contact and rep along, like picking it in the form does.
+      ...(customer ? { contactId: primaryContact(customer)?.id, salespersonId: customer.salespersonId } : {}),
       ...initial,
     }
   })
