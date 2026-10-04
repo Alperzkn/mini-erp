@@ -44,6 +44,7 @@ export function daysBetween(fromIso: string, toIso: string): number {
 }
 
 export function shiftDays(iso: string, days: number): string {
+  if (!ISO_DATE.test(iso)) return iso
   const d = parseIsoDate(iso)
   d.setDate(d.getDate() + days)
   return toIsoDate(d)
@@ -157,8 +158,9 @@ export function renewalOf(sale: Sale): Partial<Sale> {
   const period = sale.renewalDate ? Math.max(1, monthsBetween(sale.date, sale.renewalDate)) : 12
   return {
     customerId: sale.customerId,
-    contactId: sale.contactId,
-    salespersonId: sale.salespersonId,
+    // Left out when unset so the form can prefill them from the customer.
+    ...(sale.contactId ? { contactId: sale.contactId } : {}),
+    ...(sale.salespersonId ? { salespersonId: sale.salespersonId } : {}),
     date,
     items: sale.items.map((i) => ({ ...i, id: uid() })),
     discount: sale.discount,

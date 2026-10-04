@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { daysBetween, shiftDays } from './format'
+import { daysBetween, renewalOf, shiftDays } from './format'
+import type { Sale } from './types'
 
 describe('daysBetween', () => {
   it('counts whole days across month and year ends', () => {
@@ -22,5 +23,40 @@ describe('shiftDays', () => {
   it('keeps a yearly renewal a year out when the sale moves', () => {
     const moved = shiftDays('2027-01-15', daysBetween('2026-01-15', '2026-02-01'))
     expect(moved).toBe('2027-02-01')
+  })
+})
+
+describe('shiftDays on bad input', () => {
+  it('returns the input unchanged when it is not a full date', () => {
+    expect(shiftDays('2026-1', 5)).toBe('2026-1')
+    expect(shiftDays('', 5)).toBe('')
+  })
+})
+
+describe('renewalOf', () => {
+  const sale: Sale = {
+    id: 's1',
+    number: 'S-1',
+    customerId: 'c1',
+    date: '2026-01-01',
+    currency: 'USD',
+    items: [],
+    discount: 0,
+    status: 'paid',
+    renewalDate: '2027-01-01',
+    events: [],
+    createdAt: 'x',
+    updatedAt: 'x',
+  }
+  it('leaves out rep and contact keys when the sale has none, so prefill can supply them', () => {
+    const r = renewalOf(sale)
+    expect('salespersonId' in r).toBe(false)
+    expect('contactId' in r).toBe(false)
+  })
+  it('carries them over when set', () => {
+    expect(renewalOf({ ...sale, contactId: 'p', salespersonId: 'r' })).toMatchObject({
+      contactId: 'p',
+      salespersonId: 'r',
+    })
   })
 })

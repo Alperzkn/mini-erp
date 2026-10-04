@@ -172,14 +172,19 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
   }
 
   const applyCustomer = (c: Customer) => {
-    setForm((f) => ({
-      ...f,
-      customerId: c.id,
-      contactId: c.id === f.customerId ? f.contactId : primaryContact(c)?.id,
-      salespersonId: f.salespersonId ?? c.salespersonId,
-      // New sales follow the customer's usual currency.
-      currency: !sale && c.currency && settings.rates[c.currency] ? c.currency : f.currency,
-    }))
+    setForm((f) => {
+      const prev = db.customers.find((x) => x.id === f.customerId)
+      // A rep that came from the previous company follows the switch; one the user chose stays.
+      const repWasAutoFilled = !f.salespersonId || f.salespersonId === prev?.salespersonId
+      return {
+        ...f,
+        customerId: c.id,
+        contactId: c.id === f.customerId ? f.contactId : primaryContact(c)?.id,
+        salespersonId: repWasAutoFilled ? c.salespersonId : f.salespersonId,
+        // New sales follow the customer's usual currency.
+        currency: !sale && c.currency && settings.rates[c.currency] ? c.currency : f.currency,
+      }
+    })
     clearError('customer')
   }
 

@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Connect, Plugin } from 'vite'
 import { CSV_EXPORTS } from '../src/lib/csv.ts'
 import { normalize } from '../src/lib/migrate.ts'
-import { expandPath, readConfig, resolveDataDir, writeConfig, type DataDirSource } from './storage.ts'
+import { expandPath, isInside, readConfig, resolveDataDir, writeConfig, type DataDirSource } from './storage.ts'
 
 // The whole database is one JSON file. The app loads it on start and writes
 // it back after every change. Each day's first write also keeps a copy of
@@ -104,6 +104,9 @@ function changeStorage(current: Dirs, body: { dataDir?: unknown; mode?: unknown 
   const target = expandPath(body.dataDir, os.homedir())
   if (path.resolve(target) === path.resolve(current.dataDir)) {
     throw new HttpError(400, 'That is already the folder in use.')
+  }
+  if (isInside(current.dataDir, target)) {
+    throw new HttpError(400, 'Choose a folder outside the current data folder.')
   }
   const targetDb = path.join(target, 'db.json')
   if (body.mode === 'move') {

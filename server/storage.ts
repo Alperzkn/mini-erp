@@ -30,9 +30,20 @@ export function resolveDataDir({
   home: string
   cwd: string
 }): { dataDir: string; source: DataDirSource } {
-  if (env?.trim()) return { dataDir: expandPath(env, home), source: 'env' }
+  // The env var behaves like a shell path: relative to where the app was started.
+  if (env?.trim()) {
+    const t = env.trim()
+    const expanded = t === '~' || t.startsWith('~/') ? expandPath(t, home) : path.resolve(cwd, t)
+    return { dataDir: expanded, source: 'env' }
+  }
   if (config.dataDir?.trim()) return { dataDir: expandPath(config.dataDir, home), source: 'config' }
   return { dataDir: path.resolve(cwd, 'data'), source: 'default' }
+}
+
+/** True when `child` is `parent` itself or lives anywhere below it. */
+export function isInside(parent: string, child: string): boolean {
+  const rel = path.relative(path.resolve(parent), path.resolve(child))
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
 }
 
 function configFile(configDir: string): string {
