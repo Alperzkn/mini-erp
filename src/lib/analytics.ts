@@ -51,6 +51,8 @@ export interface Report {
   average: number
   byMonth: Bucket[]
   byProduct: Bucket[]
+  /** Product · license, for products sold by license. */
+  byLicense: Bucket[]
   byType: Bucket[]
   byCustomer: Bucket[]
   bySalesperson: Bucket[]
@@ -73,6 +75,7 @@ export function buildReport(sales: Sale[], db: Db, mode: RateMode, target: Curre
   const customers = new Map(db.customers.map((c) => [c.id, c]))
   const byMonth = new Map<string, Bucket>()
   const byProduct = new Map<string, Bucket>()
+  const byLicense = new Map<string, Bucket>()
   const byType = new Map<string, Bucket>()
   const byCustomer = new Map<string, Bucket>()
   const bySalesperson = new Map<string, Bucket>()
@@ -101,6 +104,16 @@ export function buildReport(sales: Sale[], db: Db, mode: RateMode, target: Curre
       const p = item.productId ? products.get(item.productId) : undefined
       if (p) addTo(byProduct, p.id, p.name, amount, item.quantity)
       else addTo(byProduct, 'custom', 'Custom items', amount, item.quantity)
+      if (p && item.licenseId) {
+        const license = p.licenses.find((l) => l.id === item.licenseId)
+        addTo(
+          byLicense,
+          `${p.id}:${item.licenseId}`,
+          `${p.name} · ${license?.name ?? 'License'}`,
+          amount,
+          item.quantity,
+        )
+      }
       const type = p?.type ?? 'custom'
       addTo(byType, type, TYPE_LABELS[type], amount, item.quantity)
     }
@@ -114,6 +127,7 @@ export function buildReport(sales: Sale[], db: Db, mode: RateMode, target: Curre
     average: count ? revenue / count : 0,
     byMonth: [...byMonth.values()].sort((a, b) => a.key.localeCompare(b.key)),
     byProduct: sorted(byProduct),
+    byLicense: sorted(byLicense),
     byType: sorted(byType),
     byCustomer: sorted(byCustomer),
     bySalesperson: sorted(bySalesperson),

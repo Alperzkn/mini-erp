@@ -275,6 +275,9 @@ export function InsightsPage() {
         {db.salespeople.length > 0 && (
           <Breakdown title="By sales rep" buckets={report.bySalesperson} currency={currency} countLabel={salesCount} />
         )}
+        {report.byLicense.length > 0 && (
+          <Breakdown title="By license" buckets={report.byLicense} currency={currency} countLabel={(n) => `${n} sold`} />
+        )}
         <Breakdown title="By product type" buckets={report.byType} currency={currency} />
         <Card>
           <CardHeader>

@@ -62,21 +62,36 @@ export interface Customer {
   createdAt: string
 }
 
+/** One way to buy a product: an edition, tier or module with its own price and cycle. */
+export interface ProductLicense {
+  id: string
+  name: string
+  price: number
+  currency: Currency
+  billing: Billing
+  active: boolean
+  createdAt: string
+}
+
 export interface Product {
   id: string
   name: string
   type: ProductType
   billing: Billing
+  /** Used when the product is sold on its own, without picking a license. */
   price: number
   currency: Currency
   description?: string
   active: boolean
+  licenses: ProductLicense[]
   createdAt: string
 }
 
 export interface SaleItem {
   id: string
   productId: string
+  /** A license of that product, when one was picked. */
+  licenseId?: string
   description: string
   quantity: number
   unitPrice: number

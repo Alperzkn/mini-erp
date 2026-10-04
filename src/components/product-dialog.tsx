@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PlusIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,7 +19,7 @@ import { NumberInput } from '@/components/number-input'
 import { FormSection } from '@/components/form-section'
 import { currencyList, uid } from '@/lib/format'
 import { useStore } from '@/lib/store'
-import { BILLINGS, PRODUCT_TYPES, type Billing, type Product, type ProductType } from '@/lib/types'
+import { BILLINGS, PRODUCT_TYPES, type Billing, type Product, type ProductLicense, type ProductType } from '@/lib/types'
 
 function blank(currency: string): Product {
   return {
@@ -28,6 +29,19 @@ function blank(currency: string): Product {
     type: 'license',
     billing: 'one-time',
     price: 0,
+    active: true,
+    licenses: [],
+    createdAt: new Date().toISOString(),
+  }
+}
+
+function blankLicense(product: Product): ProductLicense {
+  return {
+    id: uid(),
+    name: '',
+    price: product.price,
+    currency: product.currency,
+    billing: product.billing,
     active: true,
     createdAt: new Date().toISOString(),
   }
@@ -80,6 +94,9 @@ function ProductForm({
   )
   const [error, setError] = useState<string>()
   const set = <K extends keyof Product>(k: K, v: Product[K]) => setForm((f) => ({ ...f, [k]: v }))
+  const setLicense = (id: string, patch: Partial<ProductLicense>) =>
+    setForm((f) => ({ ...f, licenses: f.licenses.map((l) => (l.id === id ? { ...l, ...patch } : l)) }))
+  const hasLicenses = form.licenses.length > 0
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -92,6 +109,7 @@ function ProductForm({
       name: form.name.trim(),
       price: Number(form.price) || 0,
       description: form.description?.trim() || undefined,
+      licenses: form.licenses.filter((l) => l.name.trim()).map((l) => ({ ...l, name: l.name.trim() })),
     }
     upsertProduct(saved)
     toast.success(product ? 'Product updated' : 'Product added')
@@ -151,11 +169,103 @@ function ProductForm({
           </div>
         </FormSection>
 
+        <FormSection
+          title="Licenses"
+          description="Editions, tiers or modules this product is sold as. Each has its own price and cycle."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => set('licenses', [...form.licenses, blankLicense(form)])}
+            >
+              <PlusIcon /> Add license
+            </Button>
+          }
+        >
+          {hasLicenses ? (
+            <div className="grid gap-2">
+              <div className="text-muted-foreground hidden grid-cols-[1.4fr_1fr_88px_1fr_auto] gap-2 px-1 text-xs font-medium sm:grid">
+                <span>Name</span>
+                <span>Price</span>
+                <span>Currency</span>
+                <span>Billing</span>
+                <span className="w-9" />
+              </div>
+              {form.licenses.map((l, i) => (
+                <div key={l.id} className="grid gap-2 sm:grid-cols-[1.4fr_1fr_88px_1fr_auto] sm:items-center">
+                  <Input
+                    aria-label="License name"
+                    placeholder="Pro, Enterprise, 10 seats…"
+                    autoFocus={i === form.licenses.length - 1 && !l.name}
+                    value={l.name}
+                    onChange={(e) => setLicense(l.id, { name: e.target.value })}
+                  />
+                  <NumberInput
+                    aria-label="License price"
+                    min="0"
+                    step="0.01"
+                    className="text-right tabular-nums"
+                    value={l.price}
+                    onChange={(price) => setLicense(l.id, { price })}
+                  />
+                  <Select value={l.currency} onValueChange={(v) => v && setLicense(l.id, { currency: v })}>
+                    <SelectTrigger className="w-full" aria-label="License currency">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencyList(db.settings).map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={l.billing} onValueChange={(v) => setLicense(l.id, { billing: v as Billing })}>
+                    <SelectTrigger className="w-full" aria-label="License billing">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BILLINGS.map((b) => (
+                        <SelectItem key={b.value} value={b.value}>
+                          {b.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Remove ${l.name || 'license'}`}
+                    onClick={() =>
+                      set(
+                        'licenses',
+                        form.licenses.filter((x) => x.id !== l.id),
+                      )
+                    }
+                  >
+                    <Trash2Icon />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-5 text-center text-sm">
+              No licenses. The product is sold as one item at the price below.
+            </p>
+          )}
+        </FormSection>
+
         <FormSection title="Pricing">
           <Field
-            label="Default price"
+            label={hasLicenses ? 'Price without a license' : 'Default price'}
             htmlFor="p-price"
-            hint="Converted with the current rates when added to a sale in another currency."
+            hint={
+              hasLicenses
+                ? 'Only used if the product is added to a sale without picking a license.'
+                : 'Converted with the current rates when added to a sale in another currency.'
+            }
           >
             <div className="flex gap-2">
               <NumberInput

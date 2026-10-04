@@ -48,7 +48,9 @@ describe('normalize v2 → v3', () => {
     const db = normalize({
       version: 2,
       settings: { salePrefix: 'S-', nextSaleNumber: 2 },
-      sales: [{ id: 's', number: 'S-0001', customerId: 'c', date: '2026-01-01', items: [], discount: 0, status: 'paid' }],
+      sales: [
+        { id: 's', number: 'S-0001', customerId: 'c', date: '2026-01-01', items: [], discount: 0, status: 'paid' },
+      ],
     })
     expect(db.settings.saleNumberFormat).toBe('S-{####}')
   })
@@ -57,6 +59,38 @@ describe('normalize v2 → v3', () => {
     expect(normalize({}).salespeople).toEqual([])
     const reps = [{ id: 'r', name: 'R', active: true, createdAt: 'x' }]
     expect(normalize({ version: 3, salespeople: reps }).salespeople).toEqual(reps)
+  })
+
+  it('gives every product a licenses list and keeps existing ones', () => {
+    const db = normalize({
+      products: [
+        {
+          id: 'p1',
+          name: 'A',
+          type: 'license',
+          billing: 'one-time',
+          price: 1,
+          currency: 'USD',
+          active: true,
+          createdAt: 'x',
+        },
+        {
+          id: 'p2',
+          name: 'B',
+          type: 'license',
+          billing: 'one-time',
+          price: 1,
+          currency: 'USD',
+          active: true,
+          createdAt: 'x',
+          licenses: [
+            { id: 'l', name: 'Pro', price: 9, currency: 'USD', billing: 'yearly', active: true, createdAt: 'x' },
+          ],
+        },
+      ],
+    })
+    expect(db.products[0].licenses).toEqual([])
+    expect(db.products[1].licenses).toHaveLength(1)
   })
 
   it('returns an empty db for null', () => {

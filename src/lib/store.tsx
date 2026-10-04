@@ -178,7 +178,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           c.id === customerId ? { ...c, contacts: c.contacts.filter((p) => p.id !== contactId) } : c,
         ),
       })),
-    upsertProduct: (p) => update((d) => ({ ...d, products: upsert(d.products, p) })),
+    upsertProduct: (p) => update((d) => ({ ...d, products: upsert(d.products, { ...p, licenses: p.licenses ?? [] }) })),
     upsertSalesperson: (p) => update((d) => ({ ...d, salespeople: upsert(d.salespeople, p) })),
     deleteSalesperson: (id) => update((d) => ({ ...d, salespeople: d.salespeople.filter((p) => p.id !== id) })),
     deleteProduct: (id) => update((d) => ({ ...d, products: d.products.filter((p) => p.id !== id) })),

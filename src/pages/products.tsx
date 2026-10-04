@@ -4,12 +4,7 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PageHeader } from '@/components/page-header'
@@ -42,9 +37,7 @@ export function ProductsPage() {
     return m
   }, [db])
 
-  const products = [...db.products].sort(
-    (a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name),
-  )
+  const products = [...db.products].sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name))
 
   return (
     <>
@@ -83,6 +76,11 @@ export function ProductsPage() {
                     <TableRow key={p.id} className={p.active ? '' : 'opacity-60'}>
                       <TableCell className="font-medium">
                         {p.name}
+                        {p.licenses.length > 0 && (
+                          <span className="text-muted-foreground ml-2 text-xs font-normal">
+                            {p.licenses.length} {p.licenses.length === 1 ? 'license' : 'licenses'}
+                          </span>
+                        )}
                         {!p.active && (
                           <Badge variant="outline" className="ml-2">
                             Inactive
@@ -92,7 +90,9 @@ export function ProductsPage() {
                       <TableCell>{typeLabel[p.type]}</TableCell>
                       <TableCell>{billingLabel[p.billing]}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatMoney(p.price, p.currency)}
+                        {p.licenses.length > 0
+                          ? `from ${formatMoney(Math.min(...p.licenses.map((l) => l.price)), p.licenses[0].currency)}`
+                          : formatMoney(p.price, p.currency)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{stats?.units ?? 0}</TableCell>
                       <TableCell className="text-right font-medium tabular-nums">

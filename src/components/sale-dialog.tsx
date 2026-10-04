@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Combobox } from '@/components/combobox'
 import { NumberInput } from '@/components/number-input'
 import { ContactDialog } from '@/components/contact-dialog'
+import { LicensePickerDialog } from '@/components/license-picker-dialog'
 import { CustomerDialog } from '@/components/customer-dialog'
 import { Field } from '@/components/field'
 import { FormSection } from '@/components/form-section'
@@ -46,6 +47,7 @@ import {
   type Contact,
   type Customer,
   type Product,
+  type ProductLicense,
   type Sale,
   type SaleItem,
   type SaleStatus,
@@ -119,6 +121,7 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
   const [customerQuery, setCustomerQuery] = useState<string>()
   const [contactQuery, setContactQuery] = useState<string>()
   const [productFor, setProductFor] = useState<{ itemId: string; name: string }>()
+  const [licensesFor, setLicensesFor] = useState<{ itemId: string; product: Product }>()
 
   const currency = form.currency
   const base = settings.baseCurrency
@@ -152,15 +155,27 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
   )
   const contactOptions = (customer?.contacts ?? []).map((p) => ({ value: p.id, label: p.name, hint: p.role }))
   const products = db.products.filter((p) => p.active || form.items.some((i) => i.productId === p.id))
-  const productOptions = products.map((p) => ({
-    value: p.id,
-    label: p.name,
-    hint: formatMoney(p.price, p.currency),
-  }))
+  // A product with licenses is listed once (opens the multi-pick) plus once per license.
+  const productOptions = products.flatMap((p) => {
+    const licenses = p.licenses.filter(
+      (l) => l.active || form.items.some((i) => i.productId === p.id && i.licenseId === l.id),
+    )
+    if (licenses.length === 0) return [{ value: p.id, label: p.name, hint: formatMoney(p.price, p.currency) }]
+    return [
+      { value: p.id, label: p.name, hint: `${licenses.length} licenses…` },
+      ...licenses.map((l) => ({
+        value: `${p.id}:${l.id}`,
+        label: `${p.name} · ${l.name}`,
+        hint: formatMoney(l.price, l.currency),
+      })),
+    ]
+  })
+  const itemValue = (i: SaleItem) => (i.licenseId ? `${i.productId}:${i.licenseId}` : i.productId)
 
   const pickProduct = (itemId: string, p: Product) => {
     setItem(itemId, {
       productId: p.id,
+      licenseId: undefined,
       description: p.name,
       unitPrice: round2(convert(p.price, p.currency, form.currency, settings.rates)),
     })
@@ -169,6 +184,39 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     if (!form.renewalDate && p.billing !== 'one-time') {
       set('renewalDate', addMonths(form.date, p.billing === 'monthly' ? 1 : 12))
     }
+  }
+
+  /** Replaces the line with the first license and appends one line per further license. */
+  const addLicenses = (itemId: string, p: Product, picked: ProductLicense[]) => {
+    if (picked.length === 0) return
+    setForm((f) => {
+      const idx = f.items.findIndex((x) => x.id === itemId)
+      const current = f.items[idx] ?? blankItem()
+      const lines = picked.map((l, i) => ({
+        ...(i === 0 ? current : blankItem()),
+        productId: p.id,
+        licenseId: l.id,
+        description: `${p.name} · ${l.name}`,
+        unitPrice: round2(convert(l.price, l.currency, f.currency, settings.rates)),
+      }))
+      const items =
+        idx === -1 ? [...f.items, ...lines] : [...f.items.slice(0, idx), ...lines, ...f.items.slice(idx + 1)]
+      const recurring = picked.find((l) => l.billing !== 'one-time')
+      const renewalDate =
+        f.renewalDate ?? (recurring ? addMonths(f.date, recurring.billing === 'monthly' ? 1 : 12) : undefined)
+      return { ...f, items, renewalDate }
+    })
+    clearError(`item-${itemId}`)
+  }
+
+  const onProductPicked = (itemId: string, value: string) => {
+    const [productId, licenseId] = value.split(':')
+    const p = db.products.find((x) => x.id === productId)
+    if (!p) return
+    const license = licenseId ? p.licenses.find((l) => l.id === licenseId) : undefined
+    if (license) addLicenses(itemId, p, [license])
+    else if (p.licenses.some((l) => l.active)) setLicensesFor({ itemId, product: p })
+    else pickProduct(itemId, p)
   }
 
   const applyCustomer = (c: Customer) => {
@@ -385,11 +433,8 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
                         aria-label="Product"
                         aria-invalid={!!err && !item.productId}
                         className="col-span-2 sm:col-span-1"
-                        value={item.productId}
-                        onChange={(id) => {
-                          const p = db.products.find((x) => x.id === id)
-                          if (p) pickProduct(item.id, p)
-                        }}
+                        value={itemValue(item)}
+                        onChange={(id) => onProductPicked(item.id, id)}
                         options={productOptions}
                         placeholder="Pick a product"
                         createLabel="New product"
@@ -632,6 +677,14 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
           onSaved={applyContact}
         />
       )}
+      <LicensePickerDialog
+        open={!!licensesFor}
+        onOpenChange={(o) => !o && setLicensesFor(undefined)}
+        product={licensesFor?.product}
+        onAdd={(picked) => {
+          if (licensesFor) addLicenses(licensesFor.itemId, licensesFor.product, picked)
+        }}
+      />
       <ProductDialog
         open={!!productFor}
         onOpenChange={(o) => !o && setProductFor(undefined)}

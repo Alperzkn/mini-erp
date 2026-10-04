@@ -65,7 +65,7 @@ export function normalize(raw: any): Db {
     },
     customers: (raw.customers ?? []).map(migrateCustomer),
     salespeople: raw.salespeople ?? [],
-    products: (raw.products ?? []).map((p: any) => ({ ...p, currency: p.currency ?? fallback })),
+    products: (raw.products ?? []).map((p: any) => ({ ...p, currency: p.currency ?? fallback, licenses: p.licenses ?? [] })),
     sales: (raw.sales ?? []).map((x: any) => ({
       ...x,
       currency: x.currency ?? fallback,

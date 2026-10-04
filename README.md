@@ -50,9 +50,13 @@ npm start        # opens http://localhost:5173 in your browser
   deal with there, with role, email and phone, and one of them is the primary contact.
   Company details, tax/VAT ID, default currency, lifetime revenue, outstanding amount,
   purchase history and activity.
-- **Products** (optional): licenses, subscriptions, services, support, each with a default
-  price in its own currency and a billing cycle. Prices are converted when added to a sale
+- **Products**: licenses, subscriptions, services, support, each with a default price in
+  its own currency and a billing cycle. A product can also carry **licenses** (editions,
+  tiers or modules), each with its own price and cycle. On a sale, pick the product and tick
+  the licenses you sold; each becomes its own line. Prices are converted when added to a sale
   in another currency.
+- **Sales team**: your colleagues who look after customers. Assign a rep to each company;
+  new sales pick the rep up automatically, and Insights breaks revenue down by rep.
 - **Admin**: business name, sale number format, reporting currency, exchange rates,
   CSV exports, backup and restore.
 - **Themes**: light, a soft (not pure black) dark, or follow the system. Switch at the
@@ -64,7 +68,7 @@ npm start        # opens http://localhost:5173 in your browser
 |------|------------|
 | `data/db.json` | All your data. Human-readable; you can open it in any editor. |
 | `data/backups/db-YYYY-MM-DD.json` | Automatic copy of the previous version, taken on the first change each day. |
-| `data/csv/*.csv` | Spreadsheet copies (sales, sale items, order events, customers, contacts, products), rewritten on every save. |
+| `data/csv/*.csv` | Spreadsheet copies (sales, sale items, order events, customers, contacts, sales team, products), rewritten on every save. |
 
 `data/` is in `.gitignore`, so business data is never committed. Back up the folder
 (Dropbox, iCloud, an external drive...) or use **Admin → Download backup**.
@@ -104,7 +108,7 @@ src/
   lib/format.ts       money/date/currency helpers, totals, renewals
   lib/analytics.ts    revenue breakdowns for Insights and the dashboard
   lib/csv.ts          CSV exports (used by the browser and the server)
-  pages/              Dashboard, Sales, Sale detail, Customers, Products, Insights, Admin
+  pages/              Dashboard, Sales, Sale detail, Customers, Sales team, Products, Insights, Admin
   components/         dialogs, tables, and shadcn/ui components (components/ui)
 server/json-db.ts     the JSON file API
 ```

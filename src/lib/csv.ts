@@ -83,12 +83,14 @@ export function saleItemsCsv(db: Db): string {
   const rows = bySaleDate(db).flatMap((s) =>
     lineShares(s, db, 'sale', base).map(({ item, amount }) => {
       const p = item.productId ? products.get(item.productId) : undefined
+      const license = item.licenseId ? p?.licenses.find((l) => l.id === item.licenseId) : undefined
       return [
         s.number,
         s.date,
         customers.get(s.customerId)?.name,
         s.status,
         p?.name ?? '',
+        license?.name ?? '',
         p?.type ?? 'custom',
         item.description,
         item.quantity,
@@ -106,6 +108,7 @@ export function saleItemsCsv(db: Db): string {
       'Customer',
       'Status',
       'Product',
+      'License',
       'Product type',
       'Description',
       'Quantity',
