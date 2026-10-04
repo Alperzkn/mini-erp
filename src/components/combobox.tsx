@@ -129,8 +129,8 @@ export function Combobox({
           aria-invalid={rest['aria-invalid'] || undefined}
           aria-label={rest['aria-label']}
           className={cn(
-            'border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-transparent px-3 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
-            !selected && 'text-muted-foreground',
+            'border-input bg-background dark:bg-input/30 hover:border-foreground/25 focus-visible:border-primary focus-visible:ring-primary/20 aria-invalid:border-destructive aria-invalid:ring-destructive/20 flex h-10 w-full items-center justify-between gap-2 rounded-lg border px-3 text-sm transition-[color,box-shadow,border-color] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+            !selected && 'text-muted-foreground/70',
             className,
           )}
         >
@@ -143,7 +143,7 @@ export function Combobox({
           align="start"
           sideOffset={4}
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 z-50 w-[var(--radix-popover-trigger-width)] min-w-56 overflow-hidden rounded-md border shadow-md"
+          className="bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 z-50 w-[var(--radix-popover-trigger-width)] min-w-56 overflow-hidden rounded-lg border shadow-lg"
         >
           <input
             ref={inputRef}
@@ -157,7 +157,7 @@ export function Combobox({
             placeholder="Type to search…"
             role="searchbox"
             aria-controls={listId}
-            className="placeholder:text-muted-foreground h-9 w-full border-b bg-transparent px-3 text-sm outline-none"
+            className="placeholder:text-muted-foreground/70 h-10 w-full border-b bg-transparent px-3 text-sm outline-none"
           />
           <ul id={listId} ref={listRef} role="listbox" className="max-h-64 overflow-y-auto p-1">
             {filtered.map((o, i) =>

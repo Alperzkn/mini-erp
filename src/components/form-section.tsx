@@ -17,7 +17,7 @@ export function FormSection({
   className?: string
 }) {
   return (
-    <section className={cn('grid gap-3', className)}>
+    <section className={cn('grid gap-4 border-t pt-5 first:border-t-0 first:pt-0', className)}>
       <div className="flex items-end justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold">{title}</h3>

@@ -260,13 +260,13 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
           <DialogDescription>What you sold, to whom, for how much, and when.</DialogDescription>
         </DialogHeader>
 
-        <DialogBody className="grid gap-7">
+        <DialogBody className="grid gap-5">
           <FormSection title="Customer">
             <div
               className={
                 db.salespeople.length > 0
-                  ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_2fr_1.5fr_1fr_1fr]'
-                  : 'grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_2fr_1fr_1fr]'
+                  ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.4fr)_160px_112px]'
+                  : 'grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_160px_112px]'
               }
             >
               <Field label="Company" htmlFor="s-customer" required error={errors.customer}>

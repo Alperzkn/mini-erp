@@ -142,7 +142,7 @@ function CustomerForm({
         <DialogDescription>A company you sell to, and the people you deal with there.</DialogDescription>
       </DialogHeader>
 
-      <DialogBody className="grid gap-7">
+      <DialogBody className="grid gap-5">
         <FormSection title="Company">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Name" htmlFor="c-name" required error={errors.name} className="sm:col-span-2">
@@ -223,69 +223,74 @@ function CustomerForm({
               No people yet. Add the person you usually deal with.
             </p>
           ) : (
-            <ul className="grid gap-3">
+            <div className="grid gap-3">
+              <div className="text-muted-foreground hidden grid-cols-[1.2fr_1fr_1.3fr_1fr_auto] gap-2 px-1 text-xs font-medium sm:grid">
+                <span>Name</span>
+                <span>Role</span>
+                <span>Email</span>
+                <span>Phone</span>
+                <span className="w-[5.5rem]">Primary</span>
+              </div>
               {form.contacts.map((p, i) => (
-                <li key={p.id} className="bg-card grid gap-3 rounded-lg border p-3">
-                  <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-                    <Field label="Name" htmlFor={`p-name-${p.id}`} required error={errors[`contact-${p.id}`]}>
-                      <Input
-                        id={`p-name-${p.id}`}
-                        placeholder="Full name"
-                        autoFocus={i === form.contacts.length - 1 && !p.name}
-                        value={p.name}
-                        onChange={(e) => setContact(p.id, { name: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Role" htmlFor={`p-role-${p.id}`}>
-                      <Input
-                        id={`p-role-${p.id}`}
-                        placeholder="CTO, Procurement…"
-                        value={p.role ?? ''}
-                        onChange={(e) => setContact(p.id, { role: e.target.value })}
-                      />
-                    </Field>
-                    <div className="flex items-end gap-1 pb-0.5">
-                      <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm">
-                        <input
-                          type="radio"
-                          name="primary-contact"
-                          className="accent-current"
-                          checked={!!p.primary}
-                          onChange={() => setPrimary(p.id)}
-                        />
-                        Primary
-                      </label>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Remove ${p.name || 'person'}`}
-                        onClick={() => removeContact(p.id)}
-                      >
-                        <Trash2Icon />
-                      </Button>
-                    </div>
+                <div key={p.id} className="grid gap-2 sm:grid-cols-[1.2fr_1fr_1.3fr_1fr_auto] sm:items-start">
+                  <div>
+                    <Input
+                      aria-label="Name"
+                      placeholder="Full name"
+                      aria-invalid={!!errors[`contact-${p.id}`]}
+                      autoFocus={i === form.contacts.length - 1 && !p.name}
+                      value={p.name}
+                      onChange={(e) => setContact(p.id, { name: e.target.value })}
+                    />
+                    {errors[`contact-${p.id}`] && (
+                      <p className="text-destructive mt-1 text-xs" role="alert">
+                        {errors[`contact-${p.id}`]}
+                      </p>
+                    )}
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Email" htmlFor={`p-email-${p.id}`}>
-                      <Input
-                        id={`p-email-${p.id}`}
-                        type="email"
-                        value={p.email ?? ''}
-                        onChange={(e) => setContact(p.id, { email: e.target.value })}
+                  <Input
+                    aria-label="Role"
+                    placeholder="Role"
+                    value={p.role ?? ''}
+                    onChange={(e) => setContact(p.id, { role: e.target.value })}
+                  />
+                  <Input
+                    aria-label="Email"
+                    type="email"
+                    placeholder="Email"
+                    value={p.email ?? ''}
+                    onChange={(e) => setContact(p.id, { email: e.target.value })}
+                  />
+                  <Input
+                    aria-label="Phone"
+                    placeholder="Phone"
+                    value={p.phone ?? ''}
+                    onChange={(e) => setContact(p.id, { phone: e.target.value })}
+                  />
+                  <div className="flex h-10 w-[5.5rem] items-center justify-between gap-1">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-sm">
+                      <input
+                        type="radio"
+                        name="primary-contact"
+                        className="accent-primary size-4"
+                        checked={!!p.primary}
+                        onChange={() => setPrimary(p.id)}
+                        aria-label={`${p.name || 'This person'} is the primary contact`}
                       />
-                    </Field>
-                    <Field label="Phone" htmlFor={`p-phone-${p.id}`}>
-                      <Input
-                        id={`p-phone-${p.id}`}
-                        value={p.phone ?? ''}
-                        onChange={(e) => setContact(p.id, { phone: e.target.value })}
-                      />
-                    </Field>
+                    </label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Remove ${p.name || 'person'}`}
+                      onClick={() => removeContact(p.id)}
+                    >
+                      <Trash2Icon />
+                    </Button>
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </FormSection>
 

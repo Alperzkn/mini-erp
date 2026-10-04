@@ -105,7 +105,7 @@ function ProductForm({
         <DialogDescription>Something you sell. The price is a default you can change on each sale.</DialogDescription>
       </DialogHeader>
 
-      <DialogBody className="grid gap-7">
+      <DialogBody className="grid gap-5">
         <FormSection title="Product">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Name" htmlFor="p-name" required error={error} className="sm:col-span-2">

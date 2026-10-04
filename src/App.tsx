@@ -1,5 +1,13 @@
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
-import { BarChart3Icon, BoxIcon, LayoutDashboardIcon, ReceiptIcon, ShieldIcon, UsersIcon } from 'lucide-react'
+import {
+  BarChart3Icon,
+  BoxIcon,
+  ContactRoundIcon,
+  LayoutDashboardIcon,
+  ReceiptIcon,
+  ShieldIcon,
+  UsersIcon,
+} from 'lucide-react'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useStore } from '@/lib/store'
@@ -12,11 +20,14 @@ import { InsightsPage } from '@/pages/insights'
 import { ProductsPage } from '@/pages/products'
 import { SaleDetailPage } from '@/pages/sale-detail'
 import { SalesPage } from '@/pages/sales'
+import { TeamDetailPage } from '@/pages/team-detail'
+import { TeamPage } from '@/pages/team'
 
 const nav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboardIcon, end: true },
   { to: '/sales', label: 'Sales', icon: ReceiptIcon },
   { to: '/customers', label: 'Customers', icon: UsersIcon },
+  { to: '/team', label: 'Sales team', icon: ContactRoundIcon },
   { to: '/products', label: 'Products', icon: BoxIcon },
   { to: '/insights', label: 'Insights', icon: BarChart3Icon },
   { to: '/admin', label: 'Admin', icon: ShieldIcon },
@@ -55,7 +66,7 @@ export default function App() {
                   cn(
                     'flex items-center gap-2 rounded-md px-3 py-2 text-sm whitespace-nowrap transition-colors',
                     isActive
-                      ? 'bg-background text-foreground font-medium shadow-xs'
+                      ? 'bg-primary/10 text-primary font-medium'
                       : 'text-muted-foreground hover:bg-background/60 hover:text-foreground',
                   )
                 }
@@ -77,6 +88,8 @@ export default function App() {
               <Route path="/sales/:id" element={<SaleDetailPage />} />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/:id" element={<CustomerDetailPage />} />
+              <Route path="/team" element={<TeamPage />} />
+              <Route path="/team/:id" element={<TeamDetailPage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/insights" element={<InsightsPage />} />
               <Route path="/admin" element={<AdminPage />} />
