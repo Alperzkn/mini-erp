@@ -53,8 +53,8 @@ npm start        # opens http://localhost:5173 in your browser
 - **Products**: licenses, subscriptions, services, support. When you create a product you
   choose how it is sold: as one item with its own price and billing cycle, or as **licenses**
   (editions, tiers or modules), each priced on its own, which you add in a second step. On
-  a sale, picking a licensed product opens its licenses so you tick the ones sold; each
-  becomes its own line. Prices are converted when added to a sale in another currency.
+  a sale, "Add items" opens your catalog: products on the left, the chosen product's licenses
+  on the right. Tick what you sold, from one product or several; each becomes its own line. Prices are converted when added to a sale in another currency.
 - **Sales team**: your colleagues who look after customers. Assign a rep to each company;
   new sales pick the rep up automatically, and Insights breaks revenue down by rep.
 - **Admin**: business name, sale number format, reporting currency, exchange rates,

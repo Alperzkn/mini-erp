@@ -29,6 +29,7 @@ export function ItemPickerDialog({
   onOpenChange,
   mode,
   current,
+  initialProductId,
   onPick,
 }: {
   open: boolean
@@ -36,6 +37,8 @@ export function ItemPickerDialog({
   mode: 'add' | 'replace'
   /** In replace mode, what the line currently holds. */
   current?: PickedItem
+  /** Product to open on when there is nothing to preselect. */
+  initialProductId?: string
   onPick: (items: PickedItem[]) => void
 }) {
   return (
@@ -45,6 +48,7 @@ export function ItemPickerDialog({
           <Catalog
             mode={mode}
             current={current}
+            initialProductId={initialProductId}
             onDone={(items) => {
               onOpenChange(false)
               if (items.length) onPick(items)
@@ -59,15 +63,17 @@ export function ItemPickerDialog({
 function Catalog({
   mode,
   current,
+  initialProductId,
   onDone,
 }: {
   mode: 'add' | 'replace'
   current?: PickedItem
+  initialProductId?: string
   onDone: (items: PickedItem[]) => void
 }) {
   const { db } = useStore()
   const [query, setQuery] = useState('')
-  const [activeId, setActiveId] = useState<string | undefined>(current?.product.id)
+  const [activeId, setActiveId] = useState<string | undefined>(current?.product.id ?? initialProductId)
   const [basket, setBasket] = useState<Map<string, PickedItem>>(
     () => new Map(current ? [[pickKey(current), current]] : []),
   )
@@ -77,15 +83,34 @@ function Catalog({
   const products = useMemo(() => {
     const q = query.trim().toLowerCase()
     return db.products
-      .filter((p) => p.active || p.id === current?.product.id)
+      .filter((p) => p.active || p.id === current?.product.id || p.id === initialProductId)
       .filter((p) => !q || p.name.toLowerCase().includes(q) || p.licenses.some((l) => l.name.toLowerCase().includes(q)))
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [db.products, query, current])
+  }, [db.products, query, current, initialProductId])
 
   const groups = PRODUCT_TYPES.map((t) => ({ ...t, items: products.filter((p) => p.type === t.value) })).filter(
     (g) => g.items.length > 0,
   )
   const active = db.products.find((p) => p.id === activeId)
+  const visible = groups.flatMap((g) => g.items)
+
+  const activate = (p: Product) => {
+    setActiveId(p.id)
+    if (p.sold === 'item' && mode === 'replace') toggle({ product: p })
+  }
+  /** Up/Down walk the list; Enter picks the highlighted product instead of submitting. */
+  const onListKey = (e: React.KeyboardEvent) => {
+    if (visible.length === 0) return
+    const i = visible.findIndex((p) => p.id === activeId)
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      const next = e.key === 'ArrowDown' ? Math.min(i + 1, visible.length - 1) : Math.max(i - 1, 0)
+      activate(visible[next < 0 ? 0 : next])
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      activate(visible[i < 0 ? 0 : i])
+    }
+  }
 
   const toggle = (item: PickedItem) => {
     const key = pickKey(item)
@@ -127,7 +152,7 @@ function Catalog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 border-t sm:h-[60vh] sm:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+        <div className="grid h-[60vh] min-h-0 flex-1 grid-cols-1 grid-rows-2 border-t sm:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] sm:grid-rows-1">
           {/* Left: products */}
           <div className="flex min-h-0 flex-col border-b sm:border-r sm:border-b-0">
             <div className="relative border-b p-3">
@@ -139,9 +164,15 @@ function Catalog({
                 aria-label="Search products"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={onListKey}
               />
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            <div
+              className="min-h-0 flex-1 overflow-y-auto p-2"
+              role="listbox"
+              aria-label="Products"
+              onKeyDown={onListKey}
+            >
               {groups.length === 0 && (
                 <p className="text-muted-foreground px-2 py-6 text-center text-sm">
                   {db.products.length ? 'No products match.' : 'No products yet.'}
@@ -156,10 +187,10 @@ function Catalog({
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => {
-                          setActiveId(p.id)
-                          if (p.sold === 'item' && mode === 'replace') toggle({ product: p })
-                        }}
+                        role="option"
+                        aria-selected={p.id === activeId}
+                        tabIndex={p.id === (activeId ?? visible[0]?.id) ? 0 : -1}
+                        onClick={() => activate(p)}
                         className={cn(
                           'hover:bg-muted/70 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm',
                           p.id === activeId && 'bg-primary/10 text-primary font-medium',

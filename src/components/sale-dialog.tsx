@@ -39,7 +39,7 @@ import {
   today,
   uid,
 } from '@/lib/format'
-import { pickLabel, type PickedItem } from '@/lib/picks'
+import { pickKey, pickLabel, type PickedItem } from '@/lib/picks'
 import { isSaleNumberTaken, nextSaleNumber } from '@/lib/sale-number'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -158,13 +158,23 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     setForm((f) => {
       const idx = itemId ? f.items.findIndex((x) => x.id === itemId) : -1
       const current = idx === -1 ? undefined : f.items[idx]
-      const lines = picks.map(({ product: p, license: l }, i) => ({
-        ...(i === 0 && current ? current : blankItem()),
-        productId: p.id,
-        licenseId: l?.id,
-        description: pickLabel({ product: p, license: l }),
-        unitPrice: round2(convert(l ? l.price : p.price, l ? l.currency : p.currency, f.currency, settings.rates)),
-      }))
+      const currentKey = current
+        ? current.licenseId
+          ? `${current.productId}:${current.licenseId}`
+          : current.productId
+        : undefined
+      const lines = picks.map((pick, i) => {
+        const { product: p, license: l } = pick
+        // Re-confirming the same item keeps the line's edited description and price.
+        if (i === 0 && current && pickKey(pick) === currentKey) return current
+        return {
+          ...(i === 0 && current ? current : blankItem()),
+          productId: p.id,
+          licenseId: l?.id,
+          description: pickLabel(pick),
+          unitPrice: round2(convert(l ? l.price : p.price, l ? l.currency : p.currency, f.currency, settings.rates)),
+        }
+      })
       const items =
         idx === -1 ? [...f.items, ...lines] : [...f.items.slice(0, idx), ...lines, ...f.items.slice(idx + 1)]
       // Recurring products suggest when the next renewal is due.
@@ -183,9 +193,13 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     return `${p.name} · ${p.licenses.find((x) => x.id === i.licenseId)?.name ?? '(removed license)'}`
   }
 
+  /** What a line holds, for the picker. A removed license yields nothing to preselect. */
   const currentPick = (i: SaleItem): PickedItem | undefined => {
     const p = db.products.find((x) => x.id === i.productId)
-    return p ? { product: p, license: p.licenses.find((x) => x.id === i.licenseId) } : undefined
+    if (!p) return undefined
+    const license = p.licenses.find((x) => x.id === i.licenseId)
+    if (i.licenseId && !license) return undefined
+    return { product: p, license }
   }
 
   const applyCustomer = (c: Customer) => {
@@ -655,6 +669,9 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
         onOpenChange={(o) => !o && setPicker(undefined)}
         mode={picker?.mode ?? 'add'}
         current={picker?.mode === 'replace' ? currentPick(form.items.find((i) => i.id === picker.itemId)!) : undefined}
+        initialProductId={
+          picker?.mode === 'replace' ? form.items.find((i) => i.id === picker.itemId)?.productId : undefined
+        }
         onPick={(items) => applyPicks(picker?.mode === 'replace' ? picker.itemId : undefined, items)}
       />
     </>
