@@ -236,7 +236,10 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     onDone()
   }
 
-  const numberCustom = number !== generated
+  // On a new sale, "reset" returns to the generated number. On an edit it
+  // returns to the number the sale already has, never to a new one.
+  const resetNumber = sale ? sale.number : generated
+  const numberCustom = number !== resetNumber
 
   return (
     <>
@@ -498,10 +501,11 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
                       type="button"
                       variant="ghost"
                       size="icon"
-                      aria-label="Use the generated number"
-                      title={`Use ${generated}`}
+                      aria-label={sale ? 'Use the original number' : 'Use the generated number'}
+                      title={`Use ${resetNumber}`}
                       onClick={() => {
-                        setNumberTouched(false)
+                        if (sale) set('number', sale.number)
+                        else setNumberTouched(false)
                         clearError('number')
                       }}
                     >

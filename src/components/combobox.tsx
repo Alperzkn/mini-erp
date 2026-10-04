@@ -148,7 +148,11 @@ export function Combobox({
           <input
             ref={inputRef}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              // The list changes under the cursor, so start from the top again.
+              setActive(0)
+            }}
             onKeyDown={onKey}
             placeholder="Type to search…"
             role="searchbox"
