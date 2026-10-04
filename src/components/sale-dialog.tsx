@@ -167,9 +167,12 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     const header = {
       value: p.id,
       label: p.name,
-      hint: active.length
-        ? `${active.length} ${active.length === 1 ? 'license' : 'licenses'}…`
-        : formatMoney(p.price, p.currency),
+      hint:
+        p.sold === 'licenses'
+          ? active.length
+            ? `${active.length} ${active.length === 1 ? 'license' : 'licenses'}…`
+            : 'no active licenses'
+          : formatMoney(p.price, p.currency),
     }
     return [
       header,
@@ -220,14 +223,20 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     clearError(`item-${itemId}`)
   }
 
+  /** Chooses the product or opens its license checklist; a licensed product is never sold bare. */
+  const choose = (itemId: string, p: Product, license?: ProductLicense) => {
+    if (license) addLicenses(itemId, p, [license])
+    else if (p.sold === 'licenses') {
+      if (p.licenses.some((l) => l.active)) setLicensesFor({ itemId, product: p })
+      else toast.error(`${p.name} has no active licenses. Add some in Products.`)
+    } else pickProduct(itemId, p)
+  }
+
   const onProductPicked = (itemId: string, value: string) => {
     const [productId, licenseId] = value.split(':')
     const p = db.products.find((x) => x.id === productId)
     if (!p) return
-    const license = licenseId ? p.licenses.find((l) => l.id === licenseId) : undefined
-    if (license) addLicenses(itemId, p, [license])
-    else if (p.licenses.some((l) => l.active)) setLicensesFor({ itemId, product: p })
-    else pickProduct(itemId, p)
+    choose(itemId, p, licenseId ? p.licenses.find((l) => l.id === licenseId) : undefined)
   }
 
   const applyCustomer = (c: Customer) => {
@@ -274,7 +283,9 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     else if (isSaleNumberTaken(number, db.sales, form.id)) next.number = 'Another sale already uses this number.'
     if (form.items.length === 0) next.items = 'Add at least one item.'
     for (const i of form.items) {
+      const product = db.products.find((p) => p.id === i.productId)
       if (!i.productId) next[`item-${i.id}`] = 'Pick a product.'
+      else if (product?.sold === 'licenses' && !i.licenseId) next[`item-${i.id}`] = 'Pick a license of this product.'
       else if (!(i.quantity > 0)) next[`item-${i.id}`] = 'Quantity must be above 0.'
     }
     setErrors(next)
@@ -701,7 +712,7 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
         onOpenChange={(o) => !o && setProductFor(undefined)}
         initialName={productFor?.name}
         onSaved={(p) => {
-          if (productFor) pickProduct(productFor.itemId, p)
+          if (productFor) choose(productFor.itemId, p)
         }}
       />
     </>

@@ -65,7 +65,13 @@ export function normalize(raw: any): Db {
     },
     customers: (raw.customers ?? []).map(migrateCustomer),
     salespeople: raw.salespeople ?? [],
-    products: (raw.products ?? []).map((p: any) => ({ ...p, currency: p.currency ?? fallback, licenses: p.licenses ?? [] })),
+    products: (raw.products ?? []).map((p: any) => ({
+      ...p,
+      currency: p.currency ?? fallback,
+      licenses: p.licenses ?? [],
+      // Files written before the flag existed sold by license exactly when licenses were present.
+      sold: p.sold ?? (p.licenses?.length ? 'licenses' : 'item'),
+    })),
     sales: (raw.sales ?? []).map((x: any) => ({
       ...x,
       currency: x.currency ?? fallback,

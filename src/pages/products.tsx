@@ -76,7 +76,7 @@ export function ProductsPage() {
                     <TableRow key={p.id} className={p.active ? '' : 'opacity-60'}>
                       <TableCell className="font-medium">
                         {p.name}
-                        {p.licenses.length > 0 && (
+                        {p.sold === 'licenses' && (
                           <span className="text-muted-foreground ml-2 text-xs font-normal">
                             {p.licenses.length} {p.licenses.length === 1 ? 'license' : 'licenses'}
                           </span>
@@ -88,7 +88,7 @@ export function ProductsPage() {
                         )}
                       </TableCell>
                       <TableCell>{typeLabel[p.type]}</TableCell>
-                      <TableCell>{billingLabel[p.billing]}</TableCell>
+                      <TableCell>{p.sold === 'licenses' ? '—' : billingLabel[p.billing]}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {(() => {
                           const cheapest = cheapestLicense(p.licenses, db.settings)

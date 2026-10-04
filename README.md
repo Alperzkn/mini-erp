@@ -51,9 +51,10 @@ npm start        # opens http://localhost:5173 in your browser
   Company details, tax/VAT ID, default currency, lifetime revenue, outstanding amount,
   purchase history and activity.
 - **Products**: licenses, subscriptions, services, support, each with a default price in
-  its own currency and a billing cycle. A product can also carry **licenses** (editions,
-  tiers or modules), each with its own price and cycle. On a sale, pick the product and tick
-  the licenses you sold; each becomes its own line. Prices are converted when added to a sale
+  its own currency and a billing cycle. When you create a product you choose how it is
+  sold: as one item with a price, or as **licenses** (editions, tiers or modules), each with
+  its own price and cycle, which you add in a second step. On a sale, picking such a product
+  opens its licenses so you tick the ones sold; each becomes its own line. Prices are converted when added to a sale
   in another currency.
 - **Sales team**: your colleagues who look after customers. Assign a rep to each company;
   new sales pick the rep up automatically, and Insights breaks revenue down by rep.

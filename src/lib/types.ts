@@ -6,15 +6,7 @@ export type SaleStatus = 'paid' | 'pending' | 'cancelled'
 /** ISO 4217 code, e.g. USD, EUR, TRY. */
 export type Currency = string
 export type EventType =
-  | 'note'
-  | 'call'
-  | 'email'
-  | 'meeting'
-  | 'invoice'
-  | 'payment'
-  | 'delivery'
-  | 'support'
-  | 'system'
+  'note' | 'call' | 'email' | 'meeting' | 'invoice' | 'payment' | 'delivery' | 'support' | 'system'
 
 /**
  * Exchange rates as "units of each currency per one common unit". Only the
@@ -73,10 +65,14 @@ export interface ProductLicense {
   createdAt: string
 }
 
+/** Sold as one item with its own price, or as a set of licenses with no price of its own. */
+export type SoldAs = 'item' | 'licenses'
+
 export interface Product {
   id: string
   name: string
   type: ProductType
+  sold: SoldAs
   billing: Billing
   /** Used when the product is sold on its own, without picking a license. */
   price: number

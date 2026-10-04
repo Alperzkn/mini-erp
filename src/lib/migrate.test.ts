@@ -93,6 +93,19 @@ describe('normalize v2 → v3', () => {
     expect(db.products[1].licenses).toHaveLength(1)
   })
 
+  it('derives how a product is sold from its licenses when the file predates the flag', () => {
+    const base = { type: 'license', billing: 'one-time', price: 1, currency: 'USD', active: true, createdAt: 'x' }
+    const lic = { id: 'l', name: 'Pro', price: 9, currency: 'USD', billing: 'yearly', active: true, createdAt: 'x' }
+    const db = normalize({
+      products: [
+        { ...base, id: 'p1', name: 'A' },
+        { ...base, id: 'p2', name: 'B', licenses: [lic] },
+        { ...base, id: 'p3', name: 'C', sold: 'licenses', licenses: [] },
+      ],
+    })
+    expect(db.products.map((p) => p.sold)).toEqual(['item', 'licenses', 'licenses'])
+  })
+
   it('returns an empty db for null', () => {
     expect(normalize(null).customers).toEqual([])
   })
