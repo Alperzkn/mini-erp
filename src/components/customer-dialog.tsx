@@ -18,7 +18,7 @@ import { useStore } from '@/lib/store'
 import type { Customer } from '@/lib/types'
 
 function blank(): Customer {
-  return { id: uid(), name: '', createdAt: new Date().toISOString() }
+  return { id: uid(), name: '', contacts: [], createdAt: new Date().toISOString() }
 }
 
 export function CustomerDialog({
@@ -82,9 +82,6 @@ function CustomerForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name *" htmlFor="c-name">
           <Input id="c-name" autoFocus value={form.name} onChange={(e) => set('name', e.target.value)} />
-        </Field>
-        <Field label="Company" htmlFor="c-company">
-          <Input id="c-company" value={form.company ?? ''} onChange={(e) => set('company', e.target.value)} />
         </Field>
         <Field label="Email" htmlFor="c-email">
           <Input id="c-email" type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)} />

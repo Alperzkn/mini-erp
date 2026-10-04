@@ -1,7 +1,7 @@
 // CSV builders shared by the browser (downloads) and the local server (which
 // mirrors every save into data/csv/). Keep this file free of browser APIs.
 import { lineShares } from './analytics.ts'
-import { itemTotal, pairRate, ratesForSale, saleSubtotal, saleTotal, saleTotalIn } from './format.ts'
+import { itemTotal, pairRate, primaryContact, ratesForSale, saleSubtotal, saleTotal, saleTotalIn } from './format.ts'
 import type { Db } from './types.ts'
 
 /** Excel needs a BOM to read UTF-8 (ş, ğ, ü, €...) correctly. */
@@ -28,7 +28,7 @@ export function salesCsv(db: Db): string {
   const rows = bySaleDate(db).map((s) => {
     const c = customers.get(s.customerId)
     return [
-      s.number, s.date, c?.name, c?.company, s.currency,
+      s.number, s.date, c?.name, c?.contacts.find((p) => p.id === s.contactId)?.name, s.currency,
       saleSubtotal(s), s.discount || 0, saleTotal(s),
       pairRate(s.currency, base, ratesForSale(s, db.settings)), saleTotalIn(s, db.settings),
       s.status, s.paidDate, s.paymentMethod, s.renewalDate,
@@ -39,7 +39,7 @@ export function salesCsv(db: Db): string {
   })
   return toCsv([
     [
-      'Number', 'Date', 'Customer', 'Company', 'Currency',
+      'Number', 'Date', 'Customer', 'Contact', 'Currency',
       'Subtotal', 'Discount', 'Total',
       `Rate to ${base}`, `Total in ${base}`,
       'Status', 'Paid date', 'Payment method', 'Renewal date', 'Renews sale',
@@ -91,13 +91,13 @@ export function customersCsv(db: Db): string {
       const sales = db.sales.filter((s) => s.customerId === c.id && s.status !== 'cancelled')
       const revenue = sales.reduce((sum, s) => sum + saleTotalIn(s, db.settings), 0)
       return [
-        c.name, c.company, c.email, c.phone, c.country, c.taxId, c.currency,
+        c.name, primaryContact(c)?.name, c.email, c.phone, c.country, c.taxId, c.currency,
         sales.length, revenue, c.createdAt.slice(0, 10), c.notes,
       ]
     })
   return toCsv([
     [
-      'Name', 'Company', 'Email', 'Phone', 'Country', 'Tax ID', 'Default currency',
+      'Company', 'Primary contact', 'Email', 'Phone', 'Country', 'Tax ID', 'Default currency',
       'Sales', `Revenue in ${base}`, 'Created', 'Notes',
     ],
     ...rows,

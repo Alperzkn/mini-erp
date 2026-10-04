@@ -60,7 +60,6 @@ export function SaleDetailPage() {
       customer ? (
         <Link key="c" to={`/customers/${customer.id}`} className="hover:underline">
           {customer.name}
-          {customer.company ? ` · ${customer.company}` : ''}
         </Link>
       ) : (
         'Unknown'

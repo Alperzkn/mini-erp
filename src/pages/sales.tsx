@@ -36,7 +36,7 @@ export function SalesPage() {
       .filter((s) => {
         if (!q) return true
         const c = customers.get(s.customerId)
-        const haystack = [s.number, c?.name, c?.company, s.notes, ...s.items.map((i) => i.description)]
+        const haystack = [s.number, c?.name, ...(c?.contacts.map((p) => p.name) ?? []), s.notes, ...s.items.map((i) => i.description)]
           .join(' ')
           .toLowerCase()
         return haystack.includes(q)

@@ -221,7 +221,7 @@ function AdminContent({ onRestored }: { onRestored: () => void }) {
   const { db, updateSettings, replaceDb } = useStore()
   const [business, setBusiness] = useState({
     businessName: db.settings.businessName,
-    salePrefix: db.settings.salePrefix,
+    saleNumberFormat: db.settings.saleNumberFormat,
   })
   const [importing, setImporting] = useState<Db | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -231,7 +231,7 @@ function AdminContent({ onRestored }: { onRestored: () => void }) {
     e.preventDefault()
     updateSettings({
       businessName: business.businessName.trim() || 'My Software Business',
-      salePrefix: business.salePrefix,
+      saleNumberFormat: business.saleNumberFormat,
     })
     toast.success('Saved')
   }
@@ -267,11 +267,11 @@ function AdminContent({ onRestored }: { onRestored: () => void }) {
                   onChange={(e) => setBusiness({ ...business, businessName: e.target.value })}
                 />
               </Field>
-              <Field label="Sale number prefix" htmlFor="ad-prefix">
+              <Field label="Sale number format" htmlFor="ad-format">
                 <Input
-                  id="ad-prefix"
-                  value={business.salePrefix}
-                  onChange={(e) => setBusiness({ ...business, salePrefix: e.target.value })}
+                  id="ad-format"
+                  value={business.saleNumberFormat}
+                  onChange={(e) => setBusiness({ ...business, saleNumberFormat: e.target.value })}
                 />
               </Field>
             </CardContent>

@@ -36,7 +36,7 @@ import { SALE_STATUSES, type Customer, type Sale, type SaleItem, type SaleStatus
 const CUSTOM = '__custom__'
 
 function blankItem(): SaleItem {
-  return { id: uid(), description: '', quantity: 1, unitPrice: 0 }
+  return { id: uid(), productId: '', description: '', quantity: 1, unitPrice: 0 }
 }
 
 function blankSale(settings: Settings): Sale {
@@ -209,7 +209,6 @@ function SaleForm({
                 {customers.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
-                    {c.company ? ` · ${c.company}` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -1,3 +1,5 @@
+import { DEFAULT_SALE_NUMBER_FORMAT } from './sale-number'
+
 export type ProductType = 'license' | 'subscription' | 'service' | 'support' | 'other'
 export type Billing = 'one-time' | 'monthly' | 'yearly'
 export type SaleStatus = 'paid' | 'pending' | 'cancelled'
@@ -20,17 +22,31 @@ export type EventType =
  */
 export type Rates = Record<Currency, number>
 
+export interface Contact {
+  id: string
+  name: string
+  role?: string
+  email?: string
+  phone?: string
+  notes?: string
+  /** The main person to talk to at this company. */
+  primary?: boolean
+  createdAt: string
+}
+
+/** A customer is a company (or a sole trader) with the people you deal with. */
 export interface Customer {
   id: string
   name: string
-  company?: string
   email?: string
   phone?: string
+  website?: string
   country?: string
   taxId?: string
   /** Preselected currency for this customer's new sales. */
   currency?: Currency
   notes?: string
+  contacts: Contact[]
   createdAt: string
 }
 
@@ -48,7 +64,7 @@ export interface Product {
 
 export interface SaleItem {
   id: string
-  productId?: string
+  productId: string
   description: string
   quantity: number
   unitPrice: number
@@ -67,6 +83,8 @@ export interface Sale {
   id: string
   number: string
   customerId: string
+  /** A Contact on the customer who placed the order. */
+  contactId?: string
   /** YYYY-MM-DD */
   date: string
   currency: Currency
@@ -95,12 +113,12 @@ export interface Settings {
   rates: Rates
   /** ISO timestamp of the last time rates were edited. */
   ratesUpdatedAt?: string
-  salePrefix: string
-  nextSaleNumber: number
+  /** Pattern for new sale numbers, e.g. "S-{YYYY}-{####}". See sale-number.ts. */
+  saleNumberFormat: string
 }
 
 export interface Db {
-  version: 2
+  version: 3
   settings: Settings
   customers: Customer[]
   products: Product[]
@@ -149,13 +167,12 @@ export const DEFAULT_RATES: Rates = { USD: 1, EUR: 0.86, TRY: 41.5 }
 
 export function emptyDb(): Db {
   return {
-    version: 2,
+    version: 3,
     settings: {
       businessName: 'My Software Business',
       baseCurrency: 'USD',
       rates: { ...DEFAULT_RATES },
-      salePrefix: 'S-',
-      nextSaleNumber: 1,
+      saleNumberFormat: DEFAULT_SALE_NUMBER_FORMAT,
     },
     customers: [],
     products: [],

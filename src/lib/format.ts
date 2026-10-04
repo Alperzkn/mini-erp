@@ -1,4 +1,4 @@
-import type { Currency, Rates, Sale, SaleItem, Settings } from './types.ts'
+import type { Contact, Customer, Currency, Rates, Sale, SaleItem, Settings } from './types.ts'
 
 export function uid(): string {
   return crypto.randomUUID()
@@ -164,4 +164,9 @@ export function openRenewals(sales: Sale[]): UpcomingRenewal[] {
     .filter((s) => s.renewalDate && s.status !== 'cancelled' && !renewed.has(s.id))
     .map((sale) => ({ sale, days: daysUntil(sale.renewalDate!) }))
     .sort((a, b) => a.days - b.days)
+}
+
+/** The main person at a company: the one marked primary, else the first. */
+export function primaryContact(c: Customer): Contact | undefined {
+  return c.contacts.find((p) => p.primary) ?? c.contacts[0]
 }

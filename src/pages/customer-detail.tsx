@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/page-header'
 import { SaleDialog } from '@/components/sale-dialog'
 import { SalesTable } from '@/components/sales-table'
 import { Timeline } from '@/components/timeline'
-import { countsAsRevenue, formatMoney, saleTotalIn } from '@/lib/format'
+import { countsAsRevenue, formatMoney, primaryContact, saleTotalIn } from '@/lib/format'
 import { useStore } from '@/lib/store'
 
 export function CustomerDetailPage() {
@@ -43,7 +43,7 @@ export function CustomerDetailPage() {
   const activity = sales.flatMap((s) => s.events).filter((e) => e.type !== 'system')
 
   const details: [string, string | undefined][] = [
-    ['Company', customer.company],
+    ['Contact', primaryContact(customer)?.name],
     ['Email', customer.email],
     ['Phone', customer.phone],
     ['Country', customer.country],
@@ -60,7 +60,7 @@ export function CustomerDetailPage() {
       </Button>
       <PageHeader
         title={customer.name}
-        description={customer.company}
+        description={primaryContact(customer)?.name}
         actions={
           <>
             <Button variant="outline" onClick={() => setEditOpen(true)}>

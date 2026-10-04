@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from 'react'
 import { today, uid } from './format'
 import { normalize } from './migrate'
-import type { Customer, Db, EventType, Product, Sale, SaleEvent, Settings } from './types'
+import { isSaleNumberTaken } from './sale-number'
+import type { Contact, Customer, Db, EventType, Product, Sale, SaleEvent, Settings } from './types'
 
 type SaveState = 'idle' | 'saving' | 'error'
 
@@ -11,9 +12,15 @@ interface Store {
   saveState: SaveState
   upsertCustomer: (c: Customer) => void
   deleteCustomer: (id: string) => void
+  /** Adds or updates a person on a customer. A primary contact demotes the others. */
+  upsertContact: (customerId: string, contact: Contact) => void
+  deleteContact: (customerId: string, contactId: string) => void
   upsertProduct: (p: Product) => void
   deleteProduct: (id: string) => void
-  /** Creates or updates a sale. New sales get the next sale number. */
+  /**
+   * Creates or updates a sale. The sale brings its own number; throws when the
+   * number is empty or already used by another sale.
+   */
   upsertSale: (s: Sale) => void
   deleteSale: (id: string) => void
   addEvent: (saleId: string, e: Omit<SaleEvent, 'id' | 'createdAt'>) => void
@@ -30,6 +37,16 @@ function upsert<T extends { id: string }>(list: T[], item: T): T[] {
   const next = list.slice()
   next[idx] = item
   return next
+}
+
+/** Keeps at most one primary contact, and never leaves `contacts` undefined. */
+function withContacts(c: Customer): Customer {
+  const contacts = c.contacts ?? []
+  const firstPrimary = contacts.find((p) => p.primary)
+  return {
+    ...c,
+    contacts: contacts.map((p) => ({ ...p, primary: p === firstPrimary })),
+  }
 }
 
 function event(type: EventType, note: string, date = today()): SaleEvent {
@@ -131,29 +148,49 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const store: Store = {
     db,
     saveState,
-    upsertCustomer: (c) => update((d) => ({ ...d, customers: upsert(d.customers, c) })),
+    upsertCustomer: (c) => update((d) => ({ ...d, customers: upsert(d.customers, withContacts(c)) })),
     deleteCustomer: (id) =>
       update((d) => ({ ...d, customers: d.customers.filter((c) => c.id !== id) })),
+    upsertContact: (customerId, contact) =>
+      update((d) => ({
+        ...d,
+        customers: d.customers.map((c) => {
+          if (c.id !== customerId) return c
+          const contacts = upsert(c.contacts, contact).map((p) =>
+            contact.primary && p.id !== contact.id ? { ...p, primary: false } : p,
+          )
+          return withContacts({ ...c, contacts })
+        }),
+      })),
+    deleteContact: (customerId, contactId) =>
+      update((d) => ({
+        ...d,
+        customers: d.customers.map((c) =>
+          c.id === customerId ? { ...c, contacts: c.contacts.filter((p) => p.id !== contactId) } : c,
+        ),
+      })),
     upsertProduct: (p) => update((d) => ({ ...d, products: upsert(d.products, p) })),
     deleteProduct: (id) =>
       update((d) => ({ ...d, products: d.products.filter((p) => p.id !== id) })),
-    upsertSale: (s) =>
+    upsertSale: (s) => {
+      // Validate against the current state before queueing the update, so the
+      // error reaches the caller instead of surfacing during render.
+      const number = s.number.trim()
+      if (!number) throw new Error('Sale number is required')
+      if (isSaleNumberTaken(number, db.sales, s.id)) throw new Error('Another sale already uses this number')
       update((d) => {
         const prev = d.sales.find((x) => x.id === s.id)
-        if (prev) return { ...d, sales: upsert(d.sales, withAutoEvents(prev, s)) }
-        const number = `${d.settings.salePrefix}${String(d.settings.nextSaleNumber).padStart(4, '0')}`
-        let sales = [...d.sales, withAutoEvents(undefined, { ...s, number })]
+        const next = { ...s, number }
+        if (prev) return { ...d, sales: upsert(d.sales, withAutoEvents(prev, next)) }
+        let sales = [...d.sales, withAutoEvents(undefined, next)]
         if (s.renewsSaleId) {
           sales = sales.map((x) =>
             x.id === s.renewsSaleId ? { ...x, events: [...x.events, event('system', `Renewed by ${number}`)] } : x,
           )
         }
-        return {
-          ...d,
-          settings: { ...d.settings, nextSaleNumber: d.settings.nextSaleNumber + 1 },
-          sales,
-        }
-      }),
+        return { ...d, sales }
+      })
+    },
     deleteSale: (id) => update((d) => ({ ...d, sales: d.sales.filter((s) => s.id !== id) })),
     addEvent: (saleId, e) =>
       update((d) => ({

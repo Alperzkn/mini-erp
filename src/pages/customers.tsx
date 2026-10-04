@@ -27,7 +27,7 @@ export function CustomersPage() {
     }
     const q = query.trim().toLowerCase()
     return db.customers
-      .filter((c) => !q || [c.name, c.company, c.email, c.country].join(' ').toLowerCase().includes(q))
+      .filter((c) => !q || [c.name, c.email, c.country, ...c.contacts.flatMap((p) => [p.name, p.email])].join(' ').toLowerCase().includes(q))
       .map((c) => ({ customer: c, ...(stats.get(c.id) ?? { count: 0, revenue: 0 }) }))
       .sort((a, b) => b.revenue - a.revenue || a.customer.name.localeCompare(b.customer.name))
   }, [db.customers, db.sales, db.settings, query])
@@ -74,7 +74,7 @@ export function CustomersPage() {
                         {c.name}
                       </Link>
                     </TableCell>
-                    <TableCell>{c.company || '—'}</TableCell>
+                    <TableCell>{(c.contacts.find((p) => p.primary) ?? c.contacts[0])?.name || '—'}</TableCell>
                     <TableCell className="text-muted-foreground">{c.email || '—'}</TableCell>
                     <TableCell>{c.country || '—'}</TableCell>
                     <TableCell className="text-right tabular-nums">{count}</TableCell>
