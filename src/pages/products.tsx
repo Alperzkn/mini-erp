@@ -92,9 +92,8 @@ export function ProductsPage() {
                       <TableCell className="text-right tabular-nums">
                         {(() => {
                           const cheapest = cheapestLicense(p.licenses, db.settings)
-                          return cheapest
-                            ? `from ${formatMoney(cheapest.price, cheapest.currency)}`
-                            : formatMoney(p.price, p.currency)
+                          if (cheapest) return `from ${formatMoney(cheapest.price, cheapest.currency)}`
+                          return p.sold === 'licenses' ? '—' : formatMoney(p.price, p.currency)
                         })()}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{stats?.units ?? 0}</TableCell>

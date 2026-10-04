@@ -284,8 +284,12 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     if (form.items.length === 0) next.items = 'Add at least one item.'
     for (const i of form.items) {
       const product = db.products.find((p) => p.id === i.productId)
+      // A line recorded before the product was split into licenses stays valid as it was.
+      const original = sale?.items.find((x) => x.id === i.id)
+      const keptAsIs = !!original && original.productId === i.productId && !original.licenseId
       if (!i.productId) next[`item-${i.id}`] = 'Pick a product.'
-      else if (product?.sold === 'licenses' && !i.licenseId) next[`item-${i.id}`] = 'Pick a license of this product.'
+      else if (product?.sold === 'licenses' && !i.licenseId && !keptAsIs)
+        next[`item-${i.id}`] = 'Pick a license of this product.'
       else if (!(i.quantity > 0)) next[`item-${i.id}`] = 'Quantity must be above 0.'
     }
     setErrors(next)
@@ -453,7 +457,7 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
                     <div className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[2fr_2fr_72px_120px_110px_36px]">
                       <Combobox
                         aria-label="Product"
-                        aria-invalid={!!err && !item.productId}
+                        aria-invalid={!!err && (!item.productId || !item.licenseId)}
                         className="col-span-2 sm:col-span-1"
                         value={itemValue(item)}
                         onChange={(id) => onProductPicked(item.id, id)}
@@ -473,7 +477,7 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
                         min="0"
                         step="any"
                         aria-label="Quantity"
-                        aria-invalid={!!err && !!item.productId}
+                        aria-invalid={!!err && !!item.productId && !(item.quantity > 0)}
                         className="text-right tabular-nums"
                         value={item.quantity}
                         onChange={(quantity) => {

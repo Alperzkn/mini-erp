@@ -45,13 +45,14 @@ function blank(currency: string): Product {
   }
 }
 
-function blankLicense(currency: string): ProductLicense {
+/** A new row follows the previous row's currency and cycle so a list stays consistent. */
+function blankLicense(previous: ProductLicense | undefined, currency: string): ProductLicense {
   return {
     id: uid(),
     name: '',
     price: 0,
-    currency,
-    billing: 'yearly',
+    currency: previous?.currency ?? currency,
+    billing: previous?.billing ?? 'yearly',
     active: true,
     createdAt: new Date().toISOString(),
   }
@@ -137,7 +138,7 @@ function ProductForm({
   const goToLicenses = () => {
     if (!validProduct()) return
     // Start with one empty row so the step is never blank.
-    if (form.licenses.length === 0) set('licenses', [blankLicense(form.currency)])
+    if (form.licenses.length === 0) set('licenses', [blankLicense(undefined, form.currency)])
     setStep('licenses')
   }
 
@@ -193,7 +194,10 @@ function ProductForm({
             {(['product', 'licenses'] as const).map((s, i) => (
               <li key={s} className="contents">
                 {i > 0 && <span aria-hidden className="bg-border h-px w-6" />}
-                <span className={cn('flex items-center gap-1.5', step === s && 'text-foreground font-medium')}>
+                <span
+                  aria-current={step === s ? 'step' : undefined}
+                  className={cn('flex items-center gap-1.5', step === s && 'text-foreground font-medium')}
+                >
                   <span
                     className={cn(
                       'inline-flex size-5 items-center justify-center rounded-full text-[11px]',
@@ -249,7 +253,7 @@ function ProductForm({
                 <label
                   key={value}
                   className={cn(
-                    'hover:bg-muted/60 flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition-colors',
+                    'hover:bg-muted/60 has-[:focus-visible]:ring-ring/40 flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition-colors has-[:focus-visible]:ring-[3px]',
                     form.sold === value && 'border-primary bg-primary/5 ring-primary/20 ring-[3px]',
                   )}
                 >
@@ -416,12 +420,13 @@ function ProductForm({
                 variant="ghost"
                 size="icon-sm"
                 aria-label={`Remove ${l.name || 'license'}`}
-                onClick={() =>
+                onClick={() => {
                   set(
                     'licenses',
                     form.licenses.filter((x) => x.id !== l.id),
                   )
-                }
+                  if (licenseError) setLicenseError(undefined)
+                }}
               >
                 <Trash2Icon />
               </Button>
@@ -438,7 +443,7 @@ function ProductForm({
               variant="outline"
               size="sm"
               onClick={() => {
-                set('licenses', [...form.licenses, blankLicense(form.currency)])
+                set('licenses', [...form.licenses, blankLicense(form.licenses.at(-1), form.currency)])
                 if (licenseError) setLicenseError(undefined)
               }}
             >
