@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { daysBetween, renewalOf, shiftDays } from './format'
+import { cheapestLicense, daysBetween, renewalOf, shiftDays } from './format'
 import type { Sale } from './types'
 
 describe('daysBetween', () => {
@@ -58,5 +58,28 @@ describe('renewalOf', () => {
       contactId: 'p',
       salespersonId: 'r',
     })
+  })
+})
+
+describe('cheapestLicense', () => {
+  const settings = { businessName: '', baseCurrency: 'USD', rates: { USD: 1, TRY: 40 }, saleNumberFormat: 'S-{####}' }
+  const lic = (name: string, price: number, currency: string, active = true) => ({
+    id: name,
+    name,
+    price,
+    currency,
+    billing: 'yearly' as const,
+    active,
+    createdAt: 'x',
+  })
+  it('compares across currencies and ignores inactive licenses', () => {
+    const cheapest = cheapestLicense(
+      [lic('Pro', 900, 'TRY'), lic('Ent', 500, 'USD'), lic('Old', 1, 'USD', false)],
+      settings,
+    )
+    expect(cheapest?.name).toBe('Pro')
+  })
+  it('is undefined with no active licenses', () => {
+    expect(cheapestLicense([lic('Old', 1, 'USD', false)], settings)).toBeUndefined()
   })
 })

@@ -93,6 +93,7 @@ function ProductForm({
     () => product ?? { ...blank(db.settings.baseCurrency), name: initialName ?? '' },
   )
   const [error, setError] = useState<string>()
+  const [licenseError, setLicenseError] = useState<string>()
   const set = <K extends keyof Product>(k: K, v: Product[K]) => setForm((f) => ({ ...f, [k]: v }))
   const setLicense = (id: string, patch: Partial<ProductLicense>) =>
     setForm((f) => ({ ...f, licenses: f.licenses.map((l) => (l.id === id ? { ...l, ...patch } : l)) }))
@@ -104,12 +105,16 @@ function ProductForm({
       setError('Enter the product name.')
       return
     }
+    if (form.licenses.some((l) => !l.name.trim())) {
+      setLicenseError('Name each license or remove it.')
+      return
+    }
     const saved: Product = {
       ...form,
       name: form.name.trim(),
       price: Number(form.price) || 0,
       description: form.description?.trim() || undefined,
-      licenses: form.licenses.filter((l) => l.name.trim()).map((l) => ({ ...l, name: l.name.trim() })),
+      licenses: form.licenses.map((l) => ({ ...l, name: l.name.trim() })),
     }
     upsertProduct(saved)
     toast.success(product ? 'Product updated' : 'Product added')
@@ -199,7 +204,11 @@ function ProductForm({
                     placeholder="Pro, Enterprise, 10 seats…"
                     autoFocus={i === form.licenses.length - 1 && !l.name}
                     value={l.name}
-                    onChange={(e) => setLicense(l.id, { name: e.target.value })}
+                    aria-invalid={!!licenseError && !l.name.trim()}
+                    onChange={(e) => {
+                      setLicense(l.id, { name: e.target.value })
+                      if (licenseError) setLicenseError(undefined)
+                    }}
                   />
                   <NumberInput
                     aria-label="License price"
@@ -249,6 +258,11 @@ function ProductForm({
                   </Button>
                 </div>
               ))}
+              {licenseError && (
+                <p className="text-destructive text-xs" role="alert">
+                  {licenseError}
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-5 text-center text-sm">

@@ -157,17 +157,28 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
   const products = db.products.filter((p) => p.active || form.items.some((i) => i.productId === p.id))
   // A product with licenses is listed once (opens the multi-pick) plus once per license.
   const productOptions = products.flatMap((p) => {
-    const licenses = p.licenses.filter(
-      (l) => l.active || form.items.some((i) => i.productId === p.id && i.licenseId === l.id),
-    )
-    if (licenses.length === 0) return [{ value: p.id, label: p.name, hint: formatMoney(p.price, p.currency) }]
+    const active = p.licenses.filter((l) => l.active)
+    const onSale = form.items.filter((i) => i.productId === p.id && i.licenseId)
+    const listed = p.licenses.filter((l) => l.active || onSale.some((i) => i.licenseId === l.id))
+    // A license removed from the product still needs a label on the sale that used it.
+    const removed = onSale
+      .filter((i) => !p.licenses.some((l) => l.id === i.licenseId))
+      .map((i) => ({ value: `${p.id}:${i.licenseId}`, label: `${p.name} · (removed license)` }))
+    const header = {
+      value: p.id,
+      label: p.name,
+      hint: active.length
+        ? `${active.length} ${active.length === 1 ? 'license' : 'licenses'}…`
+        : formatMoney(p.price, p.currency),
+    }
     return [
-      { value: p.id, label: p.name, hint: `${licenses.length} licenses…` },
-      ...licenses.map((l) => ({
+      header,
+      ...listed.map((l) => ({
         value: `${p.id}:${l.id}`,
         label: `${p.name} · ${l.name}`,
         hint: formatMoney(l.price, l.currency),
       })),
+      ...removed,
     ]
   })
   const itemValue = (i: SaleItem) => (i.licenseId ? `${i.productId}:${i.licenseId}` : i.productId)

@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PageHeader } from '@/components/page-header'
 import { ProductDialog } from '@/components/product-dialog'
 import { lineShares } from '@/lib/analytics'
-import { countsAsRevenue, formatMoney } from '@/lib/format'
+import { cheapestLicense, countsAsRevenue, formatMoney } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import { BILLINGS, PRODUCT_TYPES, type Product } from '@/lib/types'
 
@@ -90,9 +90,12 @@ export function ProductsPage() {
                       <TableCell>{typeLabel[p.type]}</TableCell>
                       <TableCell>{billingLabel[p.billing]}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {p.licenses.length > 0
-                          ? `from ${formatMoney(Math.min(...p.licenses.map((l) => l.price)), p.licenses[0].currency)}`
-                          : formatMoney(p.price, p.currency)}
+                        {(() => {
+                          const cheapest = cheapestLicense(p.licenses, db.settings)
+                          return cheapest
+                            ? `from ${formatMoney(cheapest.price, cheapest.currency)}`
+                            : formatMoney(p.price, p.currency)
+                        })()}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{stats?.units ?? 0}</TableCell>
                       <TableCell className="text-right font-medium tabular-nums">

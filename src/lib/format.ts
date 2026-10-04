@@ -1,4 +1,4 @@
-import type { Contact, Customer, Currency, Rates, Sale, SaleItem, Settings } from './types.ts'
+import type { Contact, Customer, Currency, ProductLicense, Rates, Sale, SaleItem, Settings } from './types.ts'
 
 export function uid(): string {
   return crypto.randomUUID()
@@ -186,6 +186,21 @@ export function openRenewals(sales: Sale[]): UpcomingRenewal[] {
     .filter((s) => s.renewalDate && s.status !== 'cancelled' && !renewed.has(s.id))
     .map((sale) => ({ sale, days: daysUntil(sale.renewalDate!) }))
     .sort((a, b) => a.days - b.days)
+}
+
+/** The active license that costs least once converted to the reporting currency. */
+export function cheapestLicense(licenses: ProductLicense[], settings: Settings): ProductLicense | undefined {
+  let best: ProductLicense | undefined
+  let bestValue = Infinity
+  for (const l of licenses) {
+    if (!l.active) continue
+    const value = convert(l.price, l.currency, settings.baseCurrency, settings.rates)
+    if (value < bestValue) {
+      best = l
+      bestValue = value
+    }
+  }
+  return best
 }
 
 /** The main person at a company: the one marked primary, else the first. */
