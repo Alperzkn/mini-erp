@@ -18,11 +18,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Combobox } from '@/components/combobox'
 import { NumberInput } from '@/components/number-input'
 import { ContactDialog } from '@/components/contact-dialog'
-import { LicensePickerDialog } from '@/components/license-picker-dialog'
+import { ItemPickerDialog } from '@/components/item-picker-dialog'
 import { CustomerDialog } from '@/components/customer-dialog'
 import { Field } from '@/components/field'
 import { FormSection } from '@/components/form-section'
-import { ProductDialog } from '@/components/product-dialog'
 import {
   addMonths,
   convert,
@@ -40,14 +39,14 @@ import {
   today,
   uid,
 } from '@/lib/format'
+import { pickLabel, type PickedItem } from '@/lib/picks'
 import { isSaleNumberTaken, nextSaleNumber } from '@/lib/sale-number'
 import { useStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 import {
   SALE_STATUSES,
   type Contact,
   type Customer,
-  type Product,
-  type ProductLicense,
   type Sale,
   type SaleItem,
   type SaleStatus,
@@ -68,7 +67,7 @@ function blankSale(settings: Settings): Sale {
     currency: settings.baseCurrency,
     fx: { ...settings.rates },
     events: [],
-    items: [blankItem()],
+    items: [],
     discount: 0,
     status: 'paid',
     paidDate: today(),
@@ -120,8 +119,7 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
   const [numberTouched, setNumberTouched] = useState(!!sale)
   const [customerQuery, setCustomerQuery] = useState<string>()
   const [contactQuery, setContactQuery] = useState<string>()
-  const [productFor, setProductFor] = useState<{ itemId: string; name: string }>()
-  const [licensesFor, setLicensesFor] = useState<{ itemId: string; product: Product }>()
+  const [picker, setPicker] = useState<{ mode: 'add' } | { mode: 'replace'; itemId: string }>()
 
   const currency = form.currency
   const base = settings.baseCurrency
@@ -154,89 +152,40 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
     [db.customers],
   )
   const contactOptions = (customer?.contacts ?? []).map((p) => ({ value: p.id, label: p.name, hint: p.role }))
-  const products = db.products.filter((p) => p.active || form.items.some((i) => i.productId === p.id))
-  // A product with licenses is listed once (opens the multi-pick) plus once per license.
-  const productOptions = products.flatMap((p) => {
-    const active = p.licenses.filter((l) => l.active)
-    const onSale = form.items.filter((i) => i.productId === p.id && i.licenseId)
-    const listed = p.licenses.filter((l) => l.active || onSale.some((i) => i.licenseId === l.id))
-    // A license removed from the product still needs a label on the sale that used it.
-    const removed = onSale
-      .filter((i) => !p.licenses.some((l) => l.id === i.licenseId))
-      .map((i) => ({ value: `${p.id}:${i.licenseId}`, label: `${p.name} · (removed license)` }))
-    const header = {
-      value: p.id,
-      label: p.name,
-      hint:
-        p.sold === 'licenses'
-          ? active.length
-            ? `${active.length} ${active.length === 1 ? 'license' : 'licenses'}…`
-            : 'no active licenses'
-          : formatMoney(p.price, p.currency),
-    }
-    return [
-      header,
-      ...listed.map((l) => ({
-        value: `${p.id}:${l.id}`,
-        label: `${p.name} · ${l.name}`,
-        hint: formatMoney(l.price, l.currency),
-      })),
-      ...removed,
-    ]
-  })
-  const itemValue = (i: SaleItem) => (i.licenseId ? `${i.productId}:${i.licenseId}` : i.productId)
-
-  const pickProduct = (itemId: string, p: Product) => {
-    setItem(itemId, {
-      productId: p.id,
-      licenseId: undefined,
-      description: p.name,
-      unitPrice: round2(convert(p.price, p.currency, form.currency, settings.rates)),
-    })
-    clearError(`item-${itemId}`)
-    // Recurring products suggest when the next renewal is due.
-    if (!form.renewalDate && p.billing !== 'one-time') {
-      set('renewalDate', addMonths(form.date, p.billing === 'monthly' ? 1 : 12))
-    }
-  }
-
-  /** Replaces the line with the first license and appends one line per further license. */
-  const addLicenses = (itemId: string, p: Product, picked: ProductLicense[]) => {
-    if (picked.length === 0) return
+  /** Puts picked items on the sale: replacing one line, or appending after the last. */
+  const applyPicks = (itemId: string | undefined, picks: PickedItem[]) => {
+    if (picks.length === 0) return
     setForm((f) => {
-      const idx = f.items.findIndex((x) => x.id === itemId)
-      const current = f.items[idx] ?? blankItem()
-      const lines = picked.map((l, i) => ({
-        ...(i === 0 ? current : blankItem()),
+      const idx = itemId ? f.items.findIndex((x) => x.id === itemId) : -1
+      const current = idx === -1 ? undefined : f.items[idx]
+      const lines = picks.map(({ product: p, license: l }, i) => ({
+        ...(i === 0 && current ? current : blankItem()),
         productId: p.id,
-        licenseId: l.id,
-        description: `${p.name} · ${l.name}`,
-        unitPrice: round2(convert(l.price, l.currency, f.currency, settings.rates)),
+        licenseId: l?.id,
+        description: pickLabel({ product: p, license: l }),
+        unitPrice: round2(convert(l ? l.price : p.price, l ? l.currency : p.currency, f.currency, settings.rates)),
       }))
       const items =
         idx === -1 ? [...f.items, ...lines] : [...f.items.slice(0, idx), ...lines, ...f.items.slice(idx + 1)]
-      const recurring = picked.find((l) => l.billing !== 'one-time')
-      const renewalDate =
-        f.renewalDate ?? (recurring ? addMonths(f.date, recurring.billing === 'monthly' ? 1 : 12) : undefined)
+      // Recurring products suggest when the next renewal is due.
+      const recurring = picks.map((x) => x.license?.billing ?? x.product.billing).find((b) => b !== 'one-time')
+      const renewalDate = f.renewalDate ?? (recurring ? addMonths(f.date, recurring === 'monthly' ? 1 : 12) : undefined)
       return { ...f, items, renewalDate }
     })
-    clearError(`item-${itemId}`)
+    if (itemId) clearError(`item-${itemId}`)
+    clearError('items')
   }
 
-  /** Chooses the product or opens its license checklist; a licensed product is never sold bare. */
-  const choose = (itemId: string, p: Product, license?: ProductLicense) => {
-    if (license) addLicenses(itemId, p, [license])
-    else if (p.sold === 'licenses') {
-      if (p.licenses.some((l) => l.active)) setLicensesFor({ itemId, product: p })
-      else toast.error(`${p.name} has no active licenses. Add some in Products.`)
-    } else pickProduct(itemId, p)
+  const lineLabel = (i: SaleItem) => {
+    const p = db.products.find((x) => x.id === i.productId)
+    if (!p) return i.description || 'Unknown product'
+    if (!i.licenseId) return p.name
+    return `${p.name} · ${p.licenses.find((x) => x.id === i.licenseId)?.name ?? '(removed license)'}`
   }
 
-  const onProductPicked = (itemId: string, value: string) => {
-    const [productId, licenseId] = value.split(':')
-    const p = db.products.find((x) => x.id === productId)
-    if (!p) return
-    choose(itemId, p, licenseId ? p.licenses.find((l) => l.id === licenseId) : undefined)
+  const currentPick = (i: SaleItem): PickedItem | undefined => {
+    const p = db.products.find((x) => x.id === i.productId)
+    return p ? { product: p, license: p.licenses.find((x) => x.id === i.licenseId) } : undefined
   }
 
   const applyCustomer = (c: Customer) => {
@@ -423,18 +372,10 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
 
           <FormSection
             title="Items"
-            description="Every line is a product. Create one here if it doesn't exist yet."
+            description="Pick products and licenses from your catalog. Each becomes a line you can adjust."
             action={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  set('items', [...form.items, blankItem()])
-                  clearError('items')
-                }}
-              >
-                <PlusIcon /> Add item
+              <Button type="button" variant="outline" size="sm" onClick={() => setPicker({ mode: 'add' })}>
+                <PlusIcon /> Add items
               </Button>
             }
           >
@@ -448,24 +389,30 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
                 <span />
               </div>
               {form.items.length === 0 && (
-                <p className="text-muted-foreground px-3 py-6 text-center text-sm">No items yet.</p>
+                <div className="text-muted-foreground flex flex-col items-center gap-2 px-3 py-8 text-center text-sm">
+                  <span>No items yet.</span>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setPicker({ mode: 'add' })}>
+                    <PlusIcon /> Add items
+                  </Button>
+                </div>
               )}
               {form.items.map((item) => {
                 const err = errors[`item-${item.id}`]
                 return (
                   <div key={item.id} className="border-b px-3 py-2 last:border-b-0">
                     <div className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[2fr_2fr_72px_120px_110px_36px]">
-                      <Combobox
+                      <button
+                        type="button"
                         aria-label="Product"
-                        aria-invalid={!!err && (!item.productId || !item.licenseId)}
-                        className="col-span-2 sm:col-span-1"
-                        value={itemValue(item)}
-                        onChange={(id) => onProductPicked(item.id, id)}
-                        options={productOptions}
-                        placeholder="Pick a product"
-                        createLabel="New product"
-                        onCreate={(q) => setProductFor({ itemId: item.id, name: q })}
-                      />
+                        aria-invalid={!!err && (!item.productId || !item.licenseId) ? true : undefined}
+                        onClick={() => setPicker({ mode: 'replace', itemId: item.id })}
+                        className="border-input bg-background hover:border-foreground/25 focus-visible:border-primary focus-visible:ring-primary/20 aria-invalid:border-destructive col-span-2 flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 text-left text-sm outline-none focus-visible:ring-[3px] sm:col-span-1"
+                      >
+                        <span className={cn('truncate', !item.productId && 'text-muted-foreground/70')}>
+                          {item.productId ? lineLabel(item) : 'Pick a product'}
+                        </span>
+                        <span className="text-muted-foreground shrink-0 text-xs">Change</span>
+                      </button>
                       <Input
                         className="col-span-2 sm:col-span-1"
                         placeholder="Description on the sale"
@@ -703,21 +650,12 @@ function SaleForm({ sale, initial, onDone }: { sale?: Sale; initial?: Partial<Sa
           onSaved={applyContact}
         />
       )}
-      <LicensePickerDialog
-        open={!!licensesFor}
-        onOpenChange={(o) => !o && setLicensesFor(undefined)}
-        product={licensesFor?.product}
-        onAdd={(picked) => {
-          if (licensesFor) addLicenses(licensesFor.itemId, licensesFor.product, picked)
-        }}
-      />
-      <ProductDialog
-        open={!!productFor}
-        onOpenChange={(o) => !o && setProductFor(undefined)}
-        initialName={productFor?.name}
-        onSaved={(p) => {
-          if (productFor) choose(productFor.itemId, p)
-        }}
+      <ItemPickerDialog
+        open={!!picker}
+        onOpenChange={(o) => !o && setPicker(undefined)}
+        mode={picker?.mode ?? 'add'}
+        current={picker?.mode === 'replace' ? currentPick(form.items.find((i) => i.id === picker.itemId)!) : undefined}
+        onPick={(items) => applyPicks(picker?.mode === 'replace' ? picker.itemId : undefined, items)}
       />
     </>
   )
