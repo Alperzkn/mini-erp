@@ -16,9 +16,22 @@ import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import { CustomerDialog } from '@/components/customer-dialog'
 import { Field } from '@/components/field'
-import { addMonths, formatMoney, itemTotal, saleSubtotal, saleTotal, today, uid } from '@/lib/format'
+import {
+  addMonths,
+  convert,
+  currencyList,
+  formatMoney,
+  formatRate,
+  itemTotal,
+  pairRate,
+  round2,
+  saleSubtotal,
+  saleTotal,
+  today,
+  uid,
+} from '@/lib/format'
 import { useStore } from '@/lib/store'
-import { SALE_STATUSES, type Sale, type SaleItem, type SaleStatus } from '@/lib/types'
+import { SALE_STATUSES, type Customer, type Sale, type SaleItem, type SaleStatus, type Settings } from '@/lib/types'
 
 const CUSTOM = '__custom__'
 
@@ -26,13 +39,16 @@ function blankItem(): SaleItem {
   return { id: uid(), description: '', quantity: 1, unitPrice: 0 }
 }
 
-function blankSale(): Sale {
+function blankSale(settings: Settings): Sale {
   const now = new Date().toISOString()
   return {
     id: uid(),
     number: '',
     customerId: '',
     date: today(),
+    currency: settings.baseCurrency,
+    fx: { ...settings.rates },
+    events: [],
     items: [blankItem()],
     discount: 0,
     status: 'paid',
@@ -74,8 +90,20 @@ function SaleForm({
   onDone: () => void
 }) {
   const { db, upsertSale } = useStore()
-  const currency = db.settings.currency
-  const [form, setForm] = useState<Sale>(() => sale ?? { ...blankSale(), ...initial })
+  const { settings } = db
+  const [form, setForm] = useState<Sale>(() => {
+    if (sale) return { ...sale, fx: sale.fx ?? { ...settings.rates } }
+    const customer = db.customers.find((c) => c.id === initial?.customerId)
+    return {
+      ...blankSale(settings),
+      ...(customer?.currency && settings.rates[customer.currency] ? { currency: customer.currency } : {}),
+      ...initial,
+    }
+  })
+  const currency = form.currency
+  const base = settings.baseCurrency
+  const fx = form.fx ?? settings.rates
+  const rateToBase = pairRate(currency, base, fx)
   const [newCustomerOpen, setNewCustomerOpen] = useState(false)
 
   const set = <K extends keyof Sale>(k: K, v: Sale[K]) => setForm((f) => ({ ...f, [k]: v }))
@@ -94,11 +122,38 @@ function SaleForm({
     }
     const p = db.products.find((x) => x.id === productId)
     if (!p) return
-    setItem(itemId, { productId: p.id, description: p.name, unitPrice: p.price })
+    setItem(itemId, {
+      productId: p.id,
+      description: p.name,
+      unitPrice: round2(convert(p.price, p.currency, form.currency, settings.rates)),
+    })
     // Recurring products suggest when the next renewal is due.
     if (!form.renewalDate && p.billing !== 'one-time') {
       set('renewalDate', addMonths(form.date, p.billing === 'monthly' ? 1 : 12))
     }
+  }
+
+  const applyCustomer = (c: Customer) =>
+    setForm((f) => ({
+      ...f,
+      customerId: c.id,
+      // New sales follow the customer's usual currency.
+      currency: !sale && c.currency && settings.rates[c.currency] ? c.currency : f.currency,
+    }))
+
+  const pickCustomer = (id: string) => {
+    const c = db.customers.find((x) => x.id === id)
+    if (c) applyCustomer(c)
+  }
+
+  /** Edit "1 {currency} = x {base}" by scaling this sale's saved rate. */
+  const setRateToBase = (x: number) => {
+    if (!(x > 0)) return
+    setForm((f) => {
+      const r = { ...(f.fx ?? settings.rates) }
+      r[f.currency] = r[base] / x
+      return { ...f, fx: r }
+    })
   }
 
   const setStatus = (status: SaleStatus) =>
@@ -141,12 +196,12 @@ function SaleForm({
         <DialogDescription>What you sold, to whom, for how much, and when.</DialogDescription>
       </DialogHeader>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <Field label="Customer *" className="sm:col-span-2">
           <div className="flex gap-2">
             {/* Radix fires onValueChange('') when the option list changes (e.g. right
                 after adding a customer); ignore it so the selection sticks. */}
-            <Select value={form.customerId} onValueChange={(v) => v && set('customerId', v)}>
+            <Select value={form.customerId} onValueChange={(v) => v && pickCustomer(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a customer" />
               </SelectTrigger>
@@ -166,6 +221,20 @@ function SaleForm({
         </Field>
         <Field label="Sale date" htmlFor="s-date">
           <Input id="s-date" type="date" required value={form.date} onChange={(e) => set('date', e.target.value)} />
+        </Field>
+        <Field label="Currency">
+          <Select value={form.currency} onValueChange={(v) => v && set('currency', v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {currencyList(settings).map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
       </div>
 
@@ -263,6 +332,36 @@ function SaleForm({
           <span>Total</span>
           <span className="tabular-nums">{formatMoney(saleTotal(form), currency)}</span>
         </div>
+        {currency !== base && (
+          <>
+            <div className="text-muted-foreground flex justify-between text-xs">
+              <span>In {base}</span>
+              <span className="tabular-nums">{formatMoney(saleTotal(form) * rateToBase, base)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <label htmlFor="s-rate" className="text-muted-foreground text-xs whitespace-nowrap">
+                Rate: 1 {currency} =
+              </label>
+              <div className="flex items-center gap-1">
+                <Input
+                  id="s-rate"
+                  // Re-mount when the currency changes so the field shows the new pair.
+                  key={currency}
+                  type="number"
+                  min="0"
+                  step="any"
+                  className="h-8 w-28 text-right"
+                  defaultValue={Number(rateToBase.toPrecision(6))}
+                  onChange={(e) => setRateToBase(e.target.valueAsNumber)}
+                />
+                <span className="text-muted-foreground text-xs">{base}</span>
+              </div>
+            </div>
+            <p className="text-muted-foreground text-right text-xs">
+              Today in Admin: 1 {currency} = {formatRate(pairRate(currency, base, settings.rates))} {base}
+            </p>
+          </>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
@@ -332,7 +431,7 @@ function SaleForm({
     <CustomerDialog
       open={newCustomerOpen}
       onOpenChange={setNewCustomerOpen}
-      onSaved={(c) => set('customerId', c.id)}
+      onSaved={applyCustomer}
     />
     </>
   )

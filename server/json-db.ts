@@ -2,13 +2,17 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Connect, Plugin } from 'vite'
+import { CSV_EXPORTS } from '../src/lib/csv.ts'
+import { normalize } from '../src/lib/migrate.ts'
 
 // The whole database is one JSON file. The app loads it on start and writes
 // it back after every change. Each day's first write also keeps a copy of
-// the previous state in data/backups/.
+// the previous state in data/backups/, and every write refreshes a set of
+// CSV files in data/csv/ for spreadsheets.
 const DATA_DIR = path.resolve(process.env.MINI_ERP_DATA_DIR ?? 'data')
 const DB_FILE = path.join(DATA_DIR, 'db.json')
 const BACKUP_DIR = path.join(DATA_DIR, 'backups')
+const CSV_DIR = path.join(DATA_DIR, 'csv')
 const MAX_BODY_BYTES = 50 * 1024 * 1024
 
 function readDb(): string | null {
@@ -26,9 +30,24 @@ function backupOncePerDay() {
 function writeDb(json: string) {
   fs.mkdirSync(DATA_DIR, { recursive: true })
   backupOncePerDay()
-  const tmp = `${DB_FILE}.tmp`
-  fs.writeFileSync(tmp, json)
-  fs.renameSync(tmp, DB_FILE)
+  writeAtomic(DB_FILE, json)
+}
+
+function writeAtomic(file: string, content: string) {
+  const tmp = `${file}.tmp`
+  fs.writeFileSync(tmp, content)
+  fs.renameSync(tmp, file)
+}
+
+function writeCsvMirror(raw: unknown) {
+  try {
+    const db = normalize(raw)
+    fs.mkdirSync(CSV_DIR, { recursive: true })
+    for (const { file, build } of CSV_EXPORTS) writeAtomic(path.join(CSV_DIR, file), build(db))
+  } catch (err) {
+    // The JSON file is the source of truth; a CSV hiccup must not fail the save.
+    console.error('[mini-erp] Could not write CSV files:', err)
+  }
 }
 
 function readBody(req: IncomingMessage): Promise<string> {
@@ -69,6 +88,7 @@ const handler: Connect.NextHandleFunction = async (req, res, next) => {
         return send(res, 400, JSON.stringify({ error: 'Invalid database payload' }))
       }
       writeDb(JSON.stringify(parsed, null, 2))
+      writeCsvMirror(parsed)
       return send(res, 200, JSON.stringify({ ok: true }))
     }
     return send(res, 405, JSON.stringify({ error: 'Method not allowed' }))

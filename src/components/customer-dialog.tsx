@@ -10,9 +10,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Field } from '@/components/field'
-import { uid } from '@/lib/format'
+import { currencyList, uid } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import type { Customer } from '@/lib/types'
 
@@ -56,7 +57,7 @@ function CustomerForm({
   customer?: Customer
   onDone: (c?: Customer) => void
 }) {
-  const { upsertCustomer } = useStore()
+  const { upsertCustomer, db } = useStore()
   const [form, setForm] = useState<Customer>(() => customer ?? blank())
   const set = <K extends keyof Customer>(k: K, v: Customer[K]) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -96,6 +97,20 @@ function CustomerForm({
         </Field>
         <Field label="Tax / VAT ID" htmlFor="c-tax">
           <Input id="c-tax" value={form.taxId ?? ''} onChange={(e) => set('taxId', e.target.value)} />
+        </Field>
+        <Field label="Default currency">
+          <Select value={form.currency ?? db.settings.baseCurrency} onValueChange={(v) => v && set('currency', v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {currencyList(db.settings).map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         <Field label="Notes" htmlFor="c-notes" className="sm:col-span-2">
           <Textarea id="c-notes" value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} />

@@ -1,36 +1,120 @@
-import { saleTotal } from './format'
-import type { Db } from './types'
+// CSV builders shared by the browser (downloads) and the local server (which
+// mirrors every save into data/csv/). Keep this file free of browser APIs.
+import { lineShares } from './analytics.ts'
+import { itemTotal, pairRate, ratesForSale, saleSubtotal, saleTotal, saleTotalIn } from './format.ts'
+import type { Db } from './types.ts'
+
+/** Excel needs a BOM to read UTF-8 (ş, ğ, ü, €...) correctly. */
+const BOM = '﻿'
 
 function cell(v: unknown): string {
-  const s = v == null ? '' : String(v)
+  if (v == null) return ''
+  const s = typeof v === 'number' ? String(Math.round(v * 100) / 100) : String(v)
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
-export function salesToCsv(db: Db): string {
-  const customers = new Map(db.customers.map((c) => [c.id, c]))
-  const header = [
-    'Number', 'Date', 'Customer', 'Company', 'Items', 'Discount', 'Total', 'Currency',
-    'Status', 'Paid date', 'Payment method', 'Renewal date', 'Notes',
-  ]
-  const rows = [...db.sales]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((s) => {
-      const c = customers.get(s.customerId)
-      return [
-        s.number, s.date, c?.name, c?.company,
-        s.items.map((i) => `${i.quantity} x ${i.description} @ ${i.unitPrice}`).join('; '),
-        s.discount || 0, saleTotal(s).toFixed(2), db.settings.currency,
-        s.status, s.paidDate, s.paymentMethod, s.renewalDate, s.notes,
-      ]
-    })
-  return [header, ...rows].map((r) => r.map(cell).join(',')).join('\n')
+function toCsv(rows: unknown[][]): string {
+  return BOM + rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n'
 }
 
-export function download(filename: string, content: string, type: string) {
-  const url = URL.createObjectURL(new Blob([content], { type }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
+function bySaleDate(db: Db) {
+  return [...db.sales].sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number))
 }
+
+export function salesCsv(db: Db): string {
+  const base = db.settings.baseCurrency
+  const customers = new Map(db.customers.map((c) => [c.id, c]))
+  const numbers = new Map(db.sales.map((s) => [s.id, s.number]))
+  const rows = bySaleDate(db).map((s) => {
+    const c = customers.get(s.customerId)
+    return [
+      s.number, s.date, c?.name, c?.company, s.currency,
+      saleSubtotal(s), s.discount || 0, saleTotal(s),
+      pairRate(s.currency, base, ratesForSale(s, db.settings)), saleTotalIn(s, db.settings),
+      s.status, s.paidDate, s.paymentMethod, s.renewalDate,
+      s.renewsSaleId ? numbers.get(s.renewsSaleId) : '',
+      s.items.map((i) => `${i.quantity} x ${i.description}`).join('; '),
+      s.events.length, s.notes,
+    ]
+  })
+  return toCsv([
+    [
+      'Number', 'Date', 'Customer', 'Company', 'Currency',
+      'Subtotal', 'Discount', 'Total',
+      `Rate to ${base}`, `Total in ${base}`,
+      'Status', 'Paid date', 'Payment method', 'Renewal date', 'Renews sale',
+      'Items', 'Events', 'Notes',
+    ],
+    ...rows,
+  ])
+}
+
+export function saleItemsCsv(db: Db): string {
+  const base = db.settings.baseCurrency
+  const customers = new Map(db.customers.map((c) => [c.id, c]))
+  const products = new Map(db.products.map((p) => [p.id, p]))
+  const rows = bySaleDate(db).flatMap((s) =>
+    lineShares(s, db, 'sale', base).map(({ item, amount }) => {
+      const p = item.productId ? products.get(item.productId) : undefined
+      return [
+        s.number, s.date, customers.get(s.customerId)?.name, s.status,
+        p?.name ?? '', p?.type ?? 'custom', item.description,
+        item.quantity, item.unitPrice, s.currency, itemTotal(item),
+        s.status === 'cancelled' ? 0 : amount,
+      ]
+    }),
+  )
+  return toCsv([
+    [
+      'Sale', 'Date', 'Customer', 'Status', 'Product', 'Product type', 'Description',
+      'Quantity', 'Unit price', 'Currency', 'Line total', `Revenue in ${base} (after discount)`,
+    ],
+    ...rows,
+  ])
+}
+
+export function eventsCsv(db: Db): string {
+  const customers = new Map(db.customers.map((c) => [c.id, c]))
+  const rows = bySaleDate(db).flatMap((s) =>
+    [...s.events]
+      .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))
+      .map((e) => [s.number, customers.get(s.customerId)?.name, e.date, e.type, e.note]),
+  )
+  return toCsv([['Sale', 'Customer', 'Date', 'Type', 'Note'], ...rows])
+}
+
+export function customersCsv(db: Db): string {
+  const base = db.settings.baseCurrency
+  const rows = [...db.customers]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) => {
+      const sales = db.sales.filter((s) => s.customerId === c.id && s.status !== 'cancelled')
+      const revenue = sales.reduce((sum, s) => sum + saleTotalIn(s, db.settings), 0)
+      return [
+        c.name, c.company, c.email, c.phone, c.country, c.taxId, c.currency,
+        sales.length, revenue, c.createdAt.slice(0, 10), c.notes,
+      ]
+    })
+  return toCsv([
+    [
+      'Name', 'Company', 'Email', 'Phone', 'Country', 'Tax ID', 'Default currency',
+      'Sales', `Revenue in ${base}`, 'Created', 'Notes',
+    ],
+    ...rows,
+  ])
+}
+
+export function productsCsv(db: Db): string {
+  const rows = [...db.products]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((p) => [p.name, p.type, p.billing, p.price, p.currency, p.active ? 'yes' : 'no', p.description])
+  return toCsv([['Name', 'Type', 'Billing', 'Price', 'Currency', 'Active', 'Description'], ...rows])
+}
+
+export const CSV_EXPORTS = [
+  { file: 'sales.csv', label: 'Sales', build: salesCsv },
+  { file: 'sale-items.csv', label: 'Sale items', build: saleItemsCsv },
+  { file: 'events.csv', label: 'Order events', build: eventsCsv },
+  { file: 'customers.csv', label: 'Customers', build: customersCsv },
+  { file: 'products.csv', label: 'Products', build: productsCsv },
+] as const

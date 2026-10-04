@@ -1,4 +1,4 @@
-import type { Sale, SaleItem } from './types'
+import type { Currency, Rates, Sale, SaleItem, Settings } from './types.ts'
 
 export function uid(): string {
   return crypto.randomUUID()
@@ -45,12 +45,69 @@ export function formatDate(iso?: string): string {
   })
 }
 
-export function formatMoney(amount: number, currency: string): string {
+export function formatMoney(amount: number, currency: Currency): string {
   try {
     return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
   } catch {
     return `${amount.toFixed(2)} ${currency}`
   }
+}
+
+export function formatCompactMoney(amount: number, currency: Currency): string {
+  try {
+    return new Intl.NumberFormat(undefined, { notation: 'compact', style: 'currency', currency }).format(amount)
+  } catch {
+    return `${Math.round(amount)} ${currency}`
+  }
+}
+
+export function formatRate(n: number): string {
+  return new Intl.NumberFormat(undefined, { maximumSignificantDigits: 6 }).format(n)
+}
+
+export function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+/** Currencies you work with: the ones that have a rate. */
+export function currencyList(settings: Settings): Currency[] {
+  return Object.keys(settings.rates)
+}
+
+export function convert(amount: number, from: Currency, to: Currency, rates: Rates): number {
+  if (from === to) return amount
+  const rf = rates[from]
+  const rt = rates[to]
+  if (!rf || !rt) return amount
+  return (amount * rt) / rf
+}
+
+/** How many `to` you get for 1 `from`. */
+export function pairRate(from: Currency, to: Currency, rates: Rates): number {
+  return convert(1, from, to, rates)
+}
+
+export type RateMode = 'sale' | 'current'
+
+/** Rates to use for a sale: the ones saved with it, or today's from Admin. */
+export function ratesForSale(sale: Sale, settings: Settings, mode: RateMode = 'sale'): Rates {
+  if (mode === 'sale' && sale.fx && sale.fx[sale.currency] && sale.fx[settings.baseCurrency]) {
+    return sale.fx
+  }
+  return settings.rates
+}
+
+/** Sale total converted to `target` (the base currency by default). */
+export function saleTotalIn(
+  sale: Sale,
+  settings: Settings,
+  mode: RateMode = 'sale',
+  target: Currency = settings.baseCurrency,
+): number {
+  const rates = ratesForSale(sale, settings, mode)
+  // Saved rates may lack a newer currency; fall back to today's for that one.
+  const r = rates[target] ? rates : settings.rates
+  return convert(saleTotal(sale), sale.currency, target, r)
 }
 
 export function itemTotal(item: SaleItem): number {
@@ -85,6 +142,7 @@ export function renewalOf(sale: Sale): Partial<Sale> {
     date,
     items: sale.items.map((i) => ({ ...i, id: uid() })),
     discount: sale.discount,
+    currency: sale.currency,
     status: 'pending',
     paidDate: undefined,
     paymentMethod: sale.paymentMethod,

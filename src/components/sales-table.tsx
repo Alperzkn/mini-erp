@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { CheckIcon, MoreHorizontalIcon, PencilIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { CheckIcon, EyeIcon, MessageSquareIcon, MoreHorizontalIcon, PencilIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,6 +28,7 @@ export function SalesTable({
   emptyText?: string
 }) {
   const { db, upsertSale, deleteSale } = useStore()
+  const navigate = useNavigate()
   const customers = new Map(db.customers.map((c) => [c.id, c]))
   const [editing, setEditing] = useState<Sale | undefined>()
   const [renewing, setRenewing] = useState<Partial<Sale> | undefined>()
@@ -56,13 +57,21 @@ export function SalesTable({
           {sales.map((s) => {
             const c = customers.get(s.customerId)
             return (
-              <TableRow key={s.id}>
-                <TableCell className="text-muted-foreground font-mono text-xs">{s.number}</TableCell>
+              <TableRow key={s.id} className="cursor-pointer" onClick={() => navigate(`/sales/${s.id}`)}>
+                <TableCell className="font-mono text-xs">
+                  <Link to={`/sales/${s.id}`} className="text-muted-foreground hover:text-foreground hover:underline">
+                    {s.number}
+                  </Link>
+                </TableCell>
                 <TableCell>{formatDate(s.date)}</TableCell>
                 {showCustomer && (
                   <TableCell>
                     {c ? (
-                      <Link to={`/customers/${c.id}`} className="hover:underline">
+                      <Link
+                        to={`/customers/${c.id}`}
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {c.name}
                       </Link>
                     ) : (
@@ -72,15 +81,21 @@ export function SalesTable({
                 )}
                 <TableCell className="max-w-72 truncate" title={s.items.map((i) => i.description).join(', ')}>
                   {s.items.map((i) => (i.quantity !== 1 ? `${i.quantity}× ${i.description}` : i.description)).join(', ')}
+                  {s.events.some((e) => e.type !== 'system') && (
+                    <MessageSquareIcon
+                      className="text-muted-foreground ml-1.5 inline size-3.5 align-[-2px]"
+                      aria-label="Has notes"
+                    />
+                  )}
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {formatMoney(saleTotal(s), db.settings.currency)}
+                  {formatMoney(saleTotal(s), s.currency)}
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={s.status} />
                 </TableCell>
                 <TableCell className="text-muted-foreground">{formatDate(s.renewalDate)}</TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon-sm" aria-label="Actions">
@@ -88,6 +103,9 @@ export function SalesTable({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => navigate(`/sales/${s.id}`)}>
+                        <EyeIcon /> Open & history
+                      </DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setEditing(s)}>
                         <PencilIcon /> Edit
                       </DropdownMenuItem>

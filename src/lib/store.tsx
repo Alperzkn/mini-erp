@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { emptyDb, type Customer, type Db, type Product, type Sale, type Settings } from './types'
+import { today, uid } from './format'
+import { normalize } from './migrate'
+import type { Customer, Db, EventType, Product, Sale, SaleEvent, Settings } from './types'
 
 type SaveState = 'idle' | 'saving' | 'error'
 
@@ -14,6 +16,8 @@ interface Store {
   /** Creates or updates a sale. New sales get the next sale number. */
   upsertSale: (s: Sale) => void
   deleteSale: (id: string) => void
+  addEvent: (saleId: string, e: Omit<SaleEvent, 'id' | 'createdAt'>) => void
+  deleteEvent: (saleId: string, eventId: string) => void
   updateSettings: (s: Partial<Settings>) => void
   replaceDb: (db: Db) => void
 }
@@ -28,17 +32,19 @@ function upsert<T extends { id: string }>(list: T[], item: T): T[] {
   return next
 }
 
-/** Fills in any fields missing from older or hand-edited files. */
-function normalize(raw: Partial<Db> | null): Db {
-  const base = emptyDb()
-  if (!raw) return base
-  return {
-    version: 1,
-    settings: { ...base.settings, ...raw.settings },
-    customers: raw.customers ?? [],
-    products: raw.products ?? [],
-    sales: raw.sales ?? [],
+function event(type: EventType, note: string, date = today()): SaleEvent {
+  return { id: uid(), date, type, note, createdAt: new Date().toISOString() }
+}
+
+/** Adds automatic history entries for what changed between two versions. */
+function withAutoEvents(prev: Sale | undefined, next: Sale): Sale {
+  const added: SaleEvent[] = []
+  if (!prev) {
+    added.push(event('system', 'Sale recorded', next.date))
+  } else if (prev.status !== next.status) {
+    added.push(event('system', `Status changed: ${prev.status} → ${next.status}`))
   }
+  return added.length ? { ...next, events: [...next.events, ...added] } : next
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -84,7 +90,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .then((data: Partial<Db> | null) => {
+      .then((data: unknown) => {
         const initial = normalize(data)
         loadedDb.current = initial
         setDb(initial)
@@ -133,16 +139,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       update((d) => ({ ...d, products: d.products.filter((p) => p.id !== id) })),
     upsertSale: (s) =>
       update((d) => {
-        const exists = d.sales.some((x) => x.id === s.id)
-        if (exists) return { ...d, sales: upsert(d.sales, s) }
+        const prev = d.sales.find((x) => x.id === s.id)
+        if (prev) return { ...d, sales: upsert(d.sales, withAutoEvents(prev, s)) }
         const number = `${d.settings.salePrefix}${String(d.settings.nextSaleNumber).padStart(4, '0')}`
+        let sales = [...d.sales, withAutoEvents(undefined, { ...s, number })]
+        if (s.renewsSaleId) {
+          sales = sales.map((x) =>
+            x.id === s.renewsSaleId ? { ...x, events: [...x.events, event('system', `Renewed by ${number}`)] } : x,
+          )
+        }
         return {
           ...d,
           settings: { ...d.settings, nextSaleNumber: d.settings.nextSaleNumber + 1 },
-          sales: [...d.sales, { ...s, number }],
+          sales,
         }
       }),
     deleteSale: (id) => update((d) => ({ ...d, sales: d.sales.filter((s) => s.id !== id) })),
+    addEvent: (saleId, e) =>
+      update((d) => ({
+        ...d,
+        sales: d.sales.map((x) =>
+          x.id === saleId ? { ...x, events: [...x.events, { ...e, id: uid(), createdAt: new Date().toISOString() }] } : x,
+        ),
+      })),
+    deleteEvent: (saleId, eventId) =>
+      update((d) => ({
+        ...d,
+        sales: d.sales.map((x) =>
+          x.id === saleId ? { ...x, events: x.events.filter((e) => e.id !== eventId) } : x,
+        ),
+      })),
     updateSettings: (s) => update((d) => ({ ...d, settings: { ...d.settings, ...s } })),
     replaceDb: (next) => update(() => normalize(next)),
   }

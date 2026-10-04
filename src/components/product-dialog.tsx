@@ -14,12 +14,13 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Field } from '@/components/field'
-import { uid } from '@/lib/format'
+import { currencyList, uid } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import { BILLINGS, PRODUCT_TYPES, type Billing, type Product, type ProductType } from '@/lib/types'
 
-function blank(): Product {
+function blank(currency: string): Product {
   return {
+    currency,
     id: uid(),
     name: '',
     type: 'license',
@@ -50,7 +51,7 @@ export function ProductDialog({
 
 function ProductForm({ product, onDone }: { product?: Product; onDone: () => void }) {
   const { upsertProduct, db } = useStore()
-  const [form, setForm] = useState<Product>(() => product ?? blank())
+  const [form, setForm] = useState<Product>(() => product ?? blank(db.settings.baseCurrency))
   const set = <K extends keyof Product>(k: K, v: Product[K]) => setForm((f) => ({ ...f, [k]: v }))
 
   const submit = (e: React.FormEvent) => {
@@ -104,15 +105,29 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
             </SelectContent>
           </Select>
         </Field>
-        <Field label={`Default price (${db.settings.currency})`} htmlFor="p-price">
-          <Input
-            id="p-price"
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.price}
-            onChange={(e) => set('price', e.target.valueAsNumber || 0)}
-          />
+        <Field label="Default price" htmlFor="p-price">
+          <div className="flex gap-2">
+            <Input
+              id="p-price"
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.price}
+              onChange={(e) => set('price', e.target.valueAsNumber || 0)}
+            />
+            <Select value={form.currency} onValueChange={(v) => v && set('currency', v)}>
+              <SelectTrigger className="w-24" aria-label="Currency">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {currencyList(db.settings).map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </Field>
         <div className="flex items-end gap-2 pb-2">
           <input

@@ -14,7 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PageHeader } from '@/components/page-header'
 import { ProductDialog } from '@/components/product-dialog'
-import { countsAsRevenue, formatMoney, itemTotal } from '@/lib/format'
+import { lineShares } from '@/lib/analytics'
+import { countsAsRevenue, formatMoney } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import { BILLINGS, PRODUCT_TYPES, type Product } from '@/lib/types'
 
@@ -30,16 +31,16 @@ export function ProductsPage() {
     const m = new Map<string, { units: number; revenue: number }>()
     for (const s of db.sales) {
       if (!countsAsRevenue(s)) continue
-      for (const i of s.items) {
-        if (!i.productId) continue
-        const r = m.get(i.productId) ?? { units: 0, revenue: 0 }
-        r.units += i.quantity
-        r.revenue += itemTotal(i)
-        m.set(i.productId, r)
+      for (const { item, amount } of lineShares(s, db, 'sale', db.settings.baseCurrency)) {
+        if (!item.productId) continue
+        const r = m.get(item.productId) ?? { units: 0, revenue: 0 }
+        r.units += item.quantity
+        r.revenue += amount
+        m.set(item.productId, r)
       }
     }
     return m
-  }, [db.sales])
+  }, [db])
 
   const products = [...db.products].sort(
     (a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name),
@@ -71,7 +72,7 @@ export function ProductsPage() {
                   <TableHead>Billing</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Units sold</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">Revenue ({db.settings.baseCurrency})</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -91,11 +92,11 @@ export function ProductsPage() {
                       <TableCell>{typeLabel[p.type]}</TableCell>
                       <TableCell>{billingLabel[p.billing]}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatMoney(p.price, db.settings.currency)}
+                        {formatMoney(p.price, p.currency)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{stats?.units ?? 0}</TableCell>
                       <TableCell className="text-right font-medium tabular-nums">
-                        {formatMoney(stats?.revenue ?? 0, db.settings.currency)}
+                        {formatMoney(stats?.revenue ?? 0, db.settings.baseCurrency)}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

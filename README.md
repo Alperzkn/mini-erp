@@ -21,19 +21,34 @@ npm start        # opens http://localhost:5173 in your browser
 
 ## Features
 
-- **Dashboard**: revenue this month and this year, amount awaiting payment, a 12-month
-  revenue chart, renewals due in the next 60 days (or overdue), and recent sales.
-- **Sales**: line items (product or custom), quantity, unit price, discount, status
-  (paid / pending / cancelled), paid date, payment method, renewal date, and notes for
-  license keys or contract references. Search, filter by status and year, and export to CSV.
+- **Dashboard**: upcoming renewals first (next 30 / 60 / 90 days or 12 months, plus
+  overdue), then revenue this month and this year, amount awaiting payment, a 12-month
+  chart and recent sales.
+- **Sales**: line items (product or custom), quantity, unit price, discount, currency,
+  status (paid / pending / cancelled), paid date, payment method, renewal date and notes.
+  Search, filter by status and year, and export to CSV.
+- **Order history**: click any sale to open it. Add events to its timeline (note, call,
+  email, meeting, invoice sent, payment, license / delivery, support), each with a date.
+  Status changes and renewals are logged automatically. A customer's page shows the
+  activity across all their orders.
+- **Multiple currencies**: USD, EUR and TRY out of the box (add more in Admin). Each sale
+  keeps its own currency and the exchange rate of the day it was recorded, which you can
+  adjust on the sale. Totals across sales are converted to your reporting currency.
+- **Insights**: revenue, collected, outstanding and average sale for any period; revenue
+  over time; and breakdowns by product, customer, product type and sale currency. Show
+  amounts in any currency, using rates on each sale date or today's rates.
 - **Renewals**: when you pick a monthly or yearly product, the renewal date is filled in
-  for you. "Record renewal" creates the follow-up sale with the same items and the next
-  renewal date, and removes the old one from the upcoming list.
-- **Customers**: contact details, tax/VAT ID, lifetime revenue, outstanding amount and
-  full purchase history.
-- **Products** (optional): licenses, subscriptions, services, support. Each has a default
-  price and billing cycle (one-time / monthly / yearly).
-- Light and dark mode, following your OS setting.
+  for you. "Renew" creates the follow-up sale with the same items and the next renewal
+  date, and removes the old one from the upcoming list.
+- **Customers**: contact details, tax/VAT ID, default currency, lifetime revenue,
+  outstanding amount, purchase history and activity.
+- **Products** (optional): licenses, subscriptions, services, support, each with a default
+  price in its own currency and a billing cycle. Prices are converted when added to a sale
+  in another currency.
+- **Admin**: business name, sale number prefix, reporting currency, exchange rates,
+  CSV exports, backup and restore.
+- **Themes**: light, a soft (not pure black) dark, or follow the system. Switch at the
+  bottom of the sidebar.
 
 ## Where your data lives
 
@@ -41,9 +56,10 @@ npm start        # opens http://localhost:5173 in your browser
 |------|------------|
 | `data/db.json` | All your data. Human-readable; you can open it in any editor. |
 | `data/backups/db-YYYY-MM-DD.json` | Automatic copy of the previous version, taken on the first change each day. |
+| `data/csv/*.csv` | Spreadsheet copies (sales, sale items, order events, customers, products), rewritten on every save. |
 
 `data/` is in `.gitignore`, so business data is never committed. Back up the folder
-(Dropbox, iCloud, an external drive...) or use **Settings → Download backup**. To store the data
+(Dropbox, iCloud, an external drive...) or use **Admin → Download backup**. To store the data
 somewhere else, set `MINI_ERP_DATA_DIR`:
 
 ```bash
@@ -59,17 +75,21 @@ There is no separate backend. A small Vite plugin (`server/json-db.ts`) adds two
 endpoints to the dev server:
 
 - `GET /api/db` returns the whole database
-- `PUT /api/db` replaces it, writing atomically (temp file + rename)
+- `PUT /api/db` replaces it, writing atomically (temp file + rename), then refreshes
+  the CSV copies
 
 The React app loads everything at startup, keeps it in memory, and saves after every
 change. For one person's sales data this stays fast for years of records.
 
 ```
 src/
-  lib/types.ts        data model (Customer, Product, Sale, Settings)
+  lib/types.ts        data model (Customer, Product, Sale, SaleEvent, Settings)
   lib/store.tsx       loading, saving, and all data changes
-  lib/format.ts       money/date helpers, totals, renewals
-  pages/              Dashboard, Sales, Customers, Products, Settings
+  lib/migrate.ts      upgrades older data files to the current shape
+  lib/format.ts       money/date/currency helpers, totals, renewals
+  lib/analytics.ts    revenue breakdowns for Insights and the dashboard
+  lib/csv.ts          CSV exports (used by the browser and the server)
+  pages/              Dashboard, Sales, Sale detail, Customers, Products, Insights, Admin
   components/         dialogs, tables, and shadcn/ui components (components/ui)
 server/json-db.ts     the JSON file API
 ```
@@ -82,7 +102,6 @@ effort to set up and maintain. Mini ERP covers only sales tracking.
 
 ## Notes and limits
 
-- One currency for everything (set it in Settings). Changing it relabels amounts; it
-  doesn't convert them.
+- Exchange rates are entered by hand in Admin; nothing is fetched from the internet.
 - No taxes and no invoice PDFs yet. Put tax details in a sale's notes for now.
 - Built for one person on one machine. Don't run two copies against the same data folder.

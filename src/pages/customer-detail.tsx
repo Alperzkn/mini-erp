@@ -9,7 +9,8 @@ import { CustomerDialog } from '@/components/customer-dialog'
 import { PageHeader } from '@/components/page-header'
 import { SaleDialog } from '@/components/sale-dialog'
 import { SalesTable } from '@/components/sales-table'
-import { countsAsRevenue, formatMoney, saleTotal } from '@/lib/format'
+import { Timeline } from '@/components/timeline'
+import { countsAsRevenue, formatMoney, saleTotalIn } from '@/lib/format'
 import { useStore } from '@/lib/store'
 
 export function CustomerDetailPage() {
@@ -33,9 +34,13 @@ export function CustomerDetailPage() {
     .filter((s) => s.customerId === customer.id)
     .sort((a, b) => b.date.localeCompare(a.date))
   const active = sales.filter(countsAsRevenue)
-  const revenue = active.reduce((sum, s) => sum + saleTotal(s), 0)
-  const outstanding = active.filter((s) => s.status === 'pending').reduce((sum, s) => sum + saleTotal(s), 0)
-  const currency = db.settings.currency
+  const revenue = active.reduce((sum, s) => sum + saleTotalIn(s, db.settings), 0)
+  const outstanding = active
+    .filter((s) => s.status === 'pending')
+    .reduce((sum, s) => sum + saleTotalIn(s, db.settings), 0)
+  const currency = db.settings.baseCurrency
+  const saleByEvent = new Map(sales.flatMap((s) => s.events.map((e) => [e.id, s] as const)))
+  const activity = sales.flatMap((s) => s.events).filter((e) => e.type !== 'system')
 
   const details: [string, string | undefined][] = [
     ['Company', customer.company],
@@ -43,6 +48,7 @@ export function CustomerDetailPage() {
     ['Phone', customer.phone],
     ['Country', customer.country],
     ['Tax / VAT ID', customer.taxId],
+    ['Currency', customer.currency],
   ]
 
   return (
@@ -117,6 +123,19 @@ export function CustomerDetailPage() {
       <Card className="py-2">
         <CardContent className="px-2">
           <SalesTable sales={sales} showCustomer={false} emptyText="No sales to this customer yet." />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Timeline
+            events={activity}
+            saleFor={(eventId) => saleByEvent.get(eventId)}
+            emptyText="No notes yet. Open a sale to add calls, emails, invoices and more to its history."
+          />
         </CardContent>
       </Card>
 

@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PageHeader } from '@/components/page-header'
 import { SaleDialog } from '@/components/sale-dialog'
 import { SalesTable } from '@/components/sales-table'
-import { download, salesToCsv } from '@/lib/csv'
-import { formatMoney, saleTotal, today } from '@/lib/format'
+import { salesCsv } from '@/lib/csv'
+import { download } from '@/lib/download'
+import { formatMoney, saleTotalIn, today } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import { SALE_STATUSES } from '@/lib/types'
 
@@ -43,7 +44,9 @@ export function SalesPage() {
       .sort((a, b) => b.date.localeCompare(a.date) || b.number.localeCompare(a.number))
   }, [db.sales, customers, query, status, year])
 
-  const total = filtered.filter((s) => s.status !== 'cancelled').reduce((sum, s) => sum + saleTotal(s), 0)
+  const total = filtered
+    .filter((s) => s.status !== 'cancelled')
+    .reduce((sum, s) => sum + saleTotalIn(s, db.settings), 0)
 
   return (
     <>
@@ -54,7 +57,7 @@ export function SalesPage() {
           <>
             <Button
               variant="outline"
-              onClick={() => download(`sales-${today()}.csv`, salesToCsv(db), 'text/csv')}
+              onClick={() => download(`sales-${today()}.csv`, salesCsv(db), 'text/csv;charset=utf-8')}
               disabled={db.sales.length === 0}
             >
               <DownloadIcon /> Export CSV
@@ -104,7 +107,7 @@ export function SalesPage() {
         </Select>
         <div className="text-muted-foreground ml-auto text-sm">
           {filtered.length} sale{filtered.length === 1 ? '' : 's'} ·{' '}
-          <span className="text-foreground font-medium">{formatMoney(total, db.settings.currency)}</span>
+          <span className="text-foreground font-medium">{formatMoney(total, db.settings.baseCurrency)}</span>
         </div>
       </div>
 

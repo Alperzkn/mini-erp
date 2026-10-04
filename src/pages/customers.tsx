@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CustomerDialog } from '@/components/customer-dialog'
 import { PageHeader } from '@/components/page-header'
-import { countsAsRevenue, formatDate, formatMoney, saleTotal } from '@/lib/format'
+import { countsAsRevenue, formatDate, formatMoney, saleTotalIn } from '@/lib/format'
 import { useStore } from '@/lib/store'
 
 export function CustomersPage() {
@@ -21,7 +21,7 @@ export function CustomersPage() {
       if (!countsAsRevenue(s)) continue
       const st = stats.get(s.customerId) ?? { count: 0, revenue: 0 }
       st.count += 1
-      st.revenue += saleTotal(s)
+      st.revenue += saleTotalIn(s, db.settings)
       if (!st.last || s.date > st.last) st.last = s.date
       stats.set(s.customerId, st)
     }
@@ -30,7 +30,7 @@ export function CustomersPage() {
       .filter((c) => !q || [c.name, c.company, c.email, c.country].join(' ').toLowerCase().includes(q))
       .map((c) => ({ customer: c, ...(stats.get(c.id) ?? { count: 0, revenue: 0 }) }))
       .sort((a, b) => b.revenue - a.revenue || a.customer.name.localeCompare(b.customer.name))
-  }, [db.customers, db.sales, query])
+  }, [db.customers, db.sales, db.settings, query])
 
   return (
     <>
@@ -62,7 +62,7 @@ export function CustomersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Country</TableHead>
                   <TableHead className="text-right">Sales</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">Revenue ({db.settings.baseCurrency})</TableHead>
                   <TableHead>Last purchase</TableHead>
                 </TableRow>
               </TableHeader>
@@ -79,7 +79,7 @@ export function CustomersPage() {
                     <TableCell>{c.country || '—'}</TableCell>
                     <TableCell className="text-right tabular-nums">{count}</TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
-                      {formatMoney(revenue, db.settings.currency)}
+                      {formatMoney(revenue, db.settings.baseCurrency)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(last)}</TableCell>
                   </TableRow>
